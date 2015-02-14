@@ -11,6 +11,7 @@ abstract class CellularAlgorithm extends Actor {
   var neighbourProcs = List.empty[ActorRef]
   var neighborDoor = 0
   var i = 0
+  var j = 0
 
   def communicate(x: ActorRef)
 
@@ -20,7 +21,6 @@ abstract class CellularAlgorithm extends Actor {
       neighbourProcs = procs
       neighborDoor = rnd.nextInt() % neighbourProcs.length
 
-      var i = 0
       neighbourProcs.foreach { proc =>
         if (i==neighborDoor) {
           proc ! ProbeMsg(1)                    
@@ -32,9 +32,9 @@ abstract class CellularAlgorithm extends Actor {
       }
 
     case ProbeMsg(v) =>
-      if (v==1 && i==neighborDoor) {
+      if (v==1 && j==neighborDoor) {
         communicate(sender)
       }
-      i=i+1
+      j=j+1
   }
 }
