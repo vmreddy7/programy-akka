@@ -3,8 +3,8 @@ package randezvous
 import akka.actor._
 import java.util.Random
 
-case class InitMsg(neighbourProcs: List[ActorRef])
-case class ProbeMsg(v: Integer)
+case class Init(neighbourProcs: List[ActorRef])
+case class Probe(v: Integer)
 
 abstract class CellularAlgorithm extends Actor {
 
@@ -19,20 +19,20 @@ abstract class CellularAlgorithm extends Actor {
 
   def receive = {
 
-    case InitMsg(procs) =>
+    case Init(procs) =>
       neighbourProcs = procs
       neighborDoor = rnd.nextInt() % neighbourProcs.length
 
       neighbourProcs.foreach { proc =>
         if (i == neighborDoor) {
-          proc ! ProbeMsg(1)
+          proc ! Probe(1)
         } else {
-          proc ! ProbeMsg(0)
+          proc ! Probe(0)
         }
         i = i + 1
       }
 
-    case ProbeMsg(v) =>
+    case Probe(v) =>
       if (v == 1 && j == neighborDoor) {
         communicate(sender)
       }
