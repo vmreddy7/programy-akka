@@ -1,8 +1,6 @@
 package randezvous
 
 import akka.actor._
-import randezvous.InitMsg
-import randezvous.CellularAlgorithm
 
 case class HelloMsg(response: Boolean)
 
