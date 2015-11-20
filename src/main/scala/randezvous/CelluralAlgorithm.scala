@@ -1,3 +1,5 @@
+package randezvous
+
 import akka.actor._
 import java.util.Random
 
@@ -22,19 +24,18 @@ abstract class CellularAlgorithm extends Actor {
       neighborDoor = rnd.nextInt() % neighbourProcs.length
 
       neighbourProcs.foreach { proc =>
-        if (i==neighborDoor) {
-          proc ! ProbeMsg(1)                    
+        if (i == neighborDoor) {
+          proc ! ProbeMsg(1)
+        } else {
+          proc ! ProbeMsg(0)
         }
-        else {
-          proc ! ProbeMsg(0)          
-        }
-        i=i+1
+        i = i + 1
       }
 
     case ProbeMsg(v) =>
-      if (v==1 && j==neighborDoor) {
+      if (v == 1 && j == neighborDoor) {
         communicate(sender)
       }
-      j=j+1
+      j = j + 1
   }
 }

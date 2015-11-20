@@ -1,18 +1,23 @@
+package randezvous
+
 import akka.actor._
+import randezvous.InitMsg
+import randezvous.CellularAlgorithm
 
 case class HelloMsg(response: Boolean)
 
 class MyRandezVous extends CellularAlgorithm {
 
   def communicate(x: ActorRef) {
+    println("Communnicate to " + x.path.name + " from " + self.path.name)
     x ! HelloMsg(true)
   }
 
   override def receive = super.receive orElse {
     case HelloMsg(response) =>
-      println("Hello from "+self.path.name)
+      println("Hello at " + self.path.name + " from " + sender.path.name)
       if (response) {
-        sender ! HelloMsg(false)      
+        sender ! HelloMsg(false)
       }
   }
 
@@ -25,9 +30,9 @@ object MyRandezVousMain extends App {
   val b = system.actorOf(Props[MyRandezVous], name = "b")
   val c = system.actorOf(Props[MyRandezVous], name = "c")
 
-  a ! InitMsg(List(b,c))
-  b ! InitMsg(List(a,c))
-  c ! InitMsg(List(a,b))
+  a ! InitMsg(List(b, c))
+  b ! InitMsg(List(a, c))
+  c ! InitMsg(List(a, b))
 
   system.shutdown()
 }
