@@ -1,14 +1,20 @@
 package ghs
 
 import akka.actor._
+import akka.pattern.ask
+import akka.util.Timeout
+import scala.concurrent.{ Await, ExecutionContext, Future }
+import scala.concurrent.duration._
+import scala.language.postfixOps
 
 case class InitActor(neighbourProcs: List[(ActorRef, Double)], fragmentId: Integer)
+case class InitActorCompleted()
 case class Test(fragementId: Integer, fragmentLevel: Integer)
 case class Reject()
 case class Accept()
 case class Report(weight: Double)
 case class Connect(fragmentLevel: Integer)
-case class InitFragment(fragementId: Integer, fragmentLevel: Integer)
+case class InitTest()
 
 class GHS extends Actor {
 
@@ -32,13 +38,13 @@ class GHS extends Actor {
       this.neighbourBasic = procs
       this.neighbourBranch = List.empty[(ActorRef, Double)]
       this.neighbourRejected = List.empty[(ActorRef, Double)]
-      self ! InitFragment(fragmentID, 0)
-
-    case InitFragment(fragmentId, fragmentLevel) =>
-      this.fragmentId = fragmentId
-      this.fragmentLevel = fragmentLevel
+      this.fragmentId = fragmentID
+      this.fragmentLevel = 0
       this.fragmentCore = self
       this.fragmentNodes = List(fragmentCore)
+      sender ! InitActorCompleted()
+
+    case InitTest() =>
 
       // send test to min basic edge
       if (!neighbourBasic.isEmpty) {
@@ -51,7 +57,7 @@ class GHS extends Actor {
           }
         }
         //println("Sending Test to " + minEdge.path.name + " from " + self.path.name)
-        minEdge ! Test(fragmentId, fragmentLevel)
+        minEdge ! Test(this.fragmentId, this.fragmentLevel)
       }
 
     case Test(fragmentId, fragmentLevel) =>
@@ -69,7 +75,7 @@ class GHS extends Actor {
 
     case Accept() =>
       println("Received Accept at " + self.path.name + " from " + sender.path.name)
-      
+
   }
 
 }
@@ -88,19 +94,34 @@ object GHSMain extends App {
   val i = system.actorOf(Props[GHS], name = "i")
   val j = system.actorOf(Props[GHS], name = "j")
 
-  // init graph
-  a ! InitActor(List((b, 3.0), (c, 6.0), (e, 9.0)), 1)
-  b ! InitActor(List((a, 3.0), (c, 4.0), (d, 2.0), (f, 9.0), (e, 9.0)), 2)
-  c ! InitActor(List((a, 6.0), (b, 4.0), (d, 2.0), (g, 9.0)), 3)
-  d ! InitActor(List((b, 2.0), (c, 2.0), (f, 8.0), (g, 9.0)), 4)
-  e ! InitActor(List((a, 9.0), (b, 9.0), (f, 8.0), (j, 18.0)), 5)
-  f ! InitActor(List((b, 9.0), (d, 8.0), (e, 8.0), (g, 7.0), (i, 9.0), (j, 10.0)), 6)
-  g ! InitActor(List((c, 9.0), (d, 9.0), (f, 7.0), (i, 5.0), (h, 4.0)), 7)
-  h ! InitActor(List((f, 4.0), (i, 1.0), (j, 4.0)), 8)
-  i ! InitActor(List((f, 9.0), (g, 5.0), (h, 1.0), (j, 3.0)), 9)
-  j ! InitActor(List((e, 18.0), (f, 10.0), (h, 4.0), (i, 3.0)), 10)
+  implicit val timeout = Timeout(5 seconds)
 
-  Thread.sleep(5000)
+  val graph = Map(
+    a -> List((b, 3.0), (c, 6.0), (e, 9.0)),
+    b -> List((a, 3.0), (c, 4.0), (d, 2.0), (f, 9.0), (e, 9.0)),
+    c -> List((a, 6.0), (b, 4.0), (d, 2.0), (g, 9.0)),
+    d -> List((b, 2.0), (c, 2.0), (f, 8.0), (g, 9.0)),
+    e -> List((a, 9.0), (b, 9.0), (f, 8.0), (j, 18.0)),
+    f -> List((b, 9.0), (d, 8.0), (e, 8.0), (g, 7.0), (i, 9.0), (j, 10.0)),
+    g -> List((c, 9.0), (d, 9.0), (f, 7.0), (i, 5.0), (h, 4.0)),
+    h -> List((f, 4.0), (i, 1.0), (j, 4.0)),
+    i -> List((f, 9.0), (g, 5.0), (h, 1.0), (j, 3.0)),
+    j -> List((e, 18.0), (f, 10.0), (h, 4.0), (i, 3.0)))
+
+  // init graph
+  var fragmentId = 1
+  graph.foreach {
+    case (node, nbs) =>
+      val future = node ? InitActor(nbs, fragmentId)
+      val result = Await.result(future, timeout.duration).asInstanceOf[InitActorCompleted]
+      fragmentId += 1
+  }
+
+  graph.keys.foreach { node =>
+    node ! InitTest()
+  }
+
+  Thread.sleep(1000)
   
   system.shutdown()
 }
