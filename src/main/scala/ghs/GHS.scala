@@ -7,14 +7,14 @@ import scala.concurrent.{ Await, ExecutionContext, Future }
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-case class InitActor(neighbourProcs: List[(ActorRef, Double)], fragmentId: Integer)
-case class InitActorCompleted()
+case class InitNode(neighbourProcs: List[(ActorRef, Double)], fragmentId: Integer)
+case class InitNodeCompleted()
 case class Test(fragementId: Integer, fragmentLevel: Integer)
 case class Reject()
 case class Accept()
 case class Report(weight: Double)
 case class Connect(fragmentLevel: Integer)
-case class InitTest()
+case class Initiate()
 
 class GHS extends Actor {
 
@@ -34,7 +34,7 @@ class GHS extends Actor {
 
   def receive = {
 
-    case InitActor(procs, fragmentID) =>
+    case InitNode(procs, fragmentID) =>
       this.neighbourBasic = procs
       this.neighbourBranch = List.empty[(ActorRef, Double)]
       this.neighbourRejected = List.empty[(ActorRef, Double)]
@@ -42,9 +42,9 @@ class GHS extends Actor {
       this.fragmentLevel = 0
       this.fragmentCore = self
       this.fragmentNodes = List(fragmentCore)
-      sender ! InitActorCompleted()
+      sender ! InitNodeCompleted()
 
-    case InitTest() =>
+    case Initiate() =>
 
       // send test to min basic edge
       if (!neighbourBasic.isEmpty) {
@@ -112,13 +112,13 @@ object GHSMain extends App {
   var fragmentId = 1
   graph.foreach {
     case (node, nbs) =>
-      val future = node ? InitActor(nbs, fragmentId)
-      val result = Await.result(future, timeout.duration).asInstanceOf[InitActorCompleted]
+      val future = node ? InitNode(nbs, fragmentId)
+      val result = Await.result(future, timeout.duration).asInstanceOf[InitNodeCompleted]
       fragmentId += 1
   }
 
   graph.keys.foreach { node =>
-    node ! InitTest()
+    node ! Initiate()
   }
 
   Thread.sleep(1000)
