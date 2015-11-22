@@ -14,8 +14,8 @@ case class Test(fragementId: Integer, fragmentLevel: Integer)
 case class Reject()
 case class Accept()
 case class Report(weight: Double)
-case class ChangeCore()
 case class Connect(fragmentLevel: Integer)
+case class ChangeCore()
 
 class GHS extends Actor {
 
