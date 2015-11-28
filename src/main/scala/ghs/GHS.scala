@@ -13,7 +13,7 @@ case class Initiate()
 case class Test(fragementId: Integer, fragmentLevel: Integer)
 case class Reject()
 case class Accept()
-case class Report(weight: Double)
+case class Report(weight: Option[Double])
 case class Connect(fragmentLevel: Integer)
 case class ChangeCore()
 
@@ -48,7 +48,10 @@ class GHS extends Actor {
     case Initiate() =>
 
       // send test to min basic edge
-      if (!neighbourBasic.isEmpty) {
+      if (neighbourBasic.isEmpty) {
+        fragmentCore ! Report(None)
+      }
+      else {
         var minWeight = Double.MaxValue
         var minEdge: ActorRef = null
         for (n <- neighbourBasic) {
@@ -74,9 +77,14 @@ class GHS extends Actor {
         }
       }
 
+    case Reject() =>
+      println("Received Reject at " + self.path.name + " from " + sender.path.name)
+      fragmentCore ! Report(None)      
+
     case Accept() =>
       println("Received Accept at " + self.path.name + " from " + sender.path.name)
-
+      fragmentCore ! Report(None)
+      
   }
 
 }
