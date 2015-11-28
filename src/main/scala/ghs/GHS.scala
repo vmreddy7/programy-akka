@@ -16,14 +16,15 @@ import akka.util.Timeout
 
 case class InitNode(neighbourProcs: Map[ActorRef, Double], fragmentId: Integer)
 case class InitNodeCompleted()
-case class Initiate()
+case class InitTest()
 case class Test(fragementId: Integer, fragmentLevel: Integer)
 case class Reject()
 case class Accept()
 case class Report(mwoe: Option[(Double, ActorRef)])
+case class InitConnect(mwoeNode: ActorRef)
 case class Connect(fragmentLevel: Integer)
-case class ConnectPermission(mwoeNode: ActorRef)
 case class ChangeCore()
+case class ChangeCoreCompleted()
 
 class GHS extends Actor {
 
@@ -81,7 +82,7 @@ class GHS extends Actor {
       this.fragmentNodes = List(fragmentCore)
       sender ! InitNodeCompleted()
 
-    case Initiate() =>
+    case InitTest() =>
       // send test to min basic edge
       val mwoe = getMwoe
       mwoe match {
@@ -137,11 +138,11 @@ class GHS extends Actor {
       if (reportAcceptedNum + reportEmptyNum == fragmentNodes.size) {
         log.info("Report completed at " + self.path.name)
         if (reportAcceptedNum > 0) {
-          reportMwoeSender ! ConnectPermission(reportMwoeNode)
+          reportMwoeSender ! InitConnect(reportMwoeNode)
         }
       }
 
-    case ConnectPermission(mwoeNode) =>
+    case InitConnect(mwoeNode) =>
       mwoeNode ! Connect(fragmentLevel)
       
     case Connect(fragmentLevel) =>
@@ -189,7 +190,7 @@ object GHSMain extends App {
   }
 
   graph.keys.foreach { node =>
-    node ! Initiate()
+    node ! InitTest()
   }
 
   Thread.sleep(1000)
