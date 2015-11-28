@@ -7,7 +7,7 @@ import scala.concurrent.{ Await, ExecutionContext, Future }
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-case class InitNode(neighbourProcs: List[(ActorRef, Double)], fragmentId: Integer)
+case class InitNode(neighbourProcs: Map[ActorRef, Double], fragmentId: Integer)
 case class InitNodeCompleted()
 case class Initiate()
 case class Test(fragementId: Integer, fragmentLevel: Integer)
@@ -19,11 +19,11 @@ case class ChangeCore()
 
 class GHS extends Actor {
 
-  var neighbourBasic: List[(ActorRef, Double)] = null
+  var neighbourBasic: Map[ActorRef, Double] = null
 
-  var neighbourBranch: List[(ActorRef, Double)] = null
+  var neighbourBranch: Map[ActorRef, Double] = null
 
-  var neighbourRejected: List[(ActorRef, Double)] = null
+  var neighbourRejected: Map[ActorRef, Double] = null
 
   var fragmentId: Integer = null
 
@@ -33,12 +33,18 @@ class GHS extends Actor {
 
   var fragmentNodes: List[ActorRef] = null
 
+  var reportAcceptedNum: Integer = 0
+
+  var reportEmptyNum: Integer = 0
+
+  var reportMwoe: Option[Double] = None
+
   def receive = {
 
     case InitNode(procs, fragmentID) =>
       this.neighbourBasic = procs
-      this.neighbourBranch = List.empty[(ActorRef, Double)]
-      this.neighbourRejected = List.empty[(ActorRef, Double)]
+      this.neighbourBranch = Map.empty[ActorRef, Double]
+      this.neighbourRejected = Map.empty[ActorRef, Double]
       this.fragmentId = fragmentID
       this.fragmentLevel = 0
       this.fragmentCore = self
@@ -50,8 +56,7 @@ class GHS extends Actor {
       // send test to min basic edge
       if (neighbourBasic.isEmpty) {
         fragmentCore ! Report(None)
-      }
-      else {
+      } else {
         var minWeight = Double.MaxValue
         var minEdge: ActorRef = null
         for (n <- neighbourBasic) {
@@ -79,12 +84,31 @@ class GHS extends Actor {
 
     case Reject() =>
       println("Received Reject at " + self.path.name + " from " + sender.path.name)
-      fragmentCore ! Report(None)      
+      fragmentCore ! Report(None)
 
     case Accept() =>
       println("Received Accept at " + self.path.name + " from " + sender.path.name)
-      fragmentCore ! Report(None)
-      
+      val w: Double = neighbourBasic.get(sender).get
+      fragmentCore ! Report(Some(w))
+
+    case Report(weight) =>
+      println("Received Report at " + self.path.name + " from " + sender.path.name + ", weight -> " + weight)
+      reportMwoe = weight match {
+        case Some(w) =>
+          reportAcceptedNum = reportAcceptedNum + 1;
+          reportMwoe match {
+            case None =>
+              Some(w)
+            case Some(mwoe) =>
+              Some(Math.min(mwoe, w))
+          }
+        case None =>
+          reportEmptyNum = reportEmptyNum + 1;
+          reportMwoe
+      }
+      if (reportAcceptedNum + reportEmptyNum == fragmentNodes.size) {
+        println("Report completed at " + self.path.name)
+      }
   }
 
 }
@@ -106,16 +130,16 @@ object GHSMain extends App {
   implicit val timeout = Timeout(5 seconds)
 
   val graph = Map(
-    a -> List((b, 3.0), (c, 6.0), (e, 9.0)),
-    b -> List((a, 3.0), (c, 4.0), (d, 2.0), (f, 9.0), (e, 9.0)),
-    c -> List((a, 6.0), (b, 4.0), (d, 2.0), (g, 9.0)),
-    d -> List((b, 2.0), (c, 2.0), (f, 8.0), (g, 9.0)),
-    e -> List((a, 9.0), (b, 9.0), (f, 8.0), (j, 18.0)),
-    f -> List((b, 9.0), (d, 8.0), (e, 8.0), (g, 7.0), (i, 9.0), (j, 10.0)),
-    g -> List((c, 9.0), (d, 9.0), (f, 7.0), (i, 5.0), (h, 4.0)),
-    h -> List((f, 4.0), (i, 1.0), (j, 4.0)),
-    i -> List((f, 9.0), (g, 5.0), (h, 1.0), (j, 3.0)),
-    j -> List((e, 18.0), (f, 10.0), (h, 4.0), (i, 3.0)))
+    a -> Map((b, 3.0), (c, 6.0), (e, 9.0)),
+    b -> Map((a, 3.0), (c, 4.0), (d, 2.0), (f, 9.0), (e, 9.0)),
+    c -> Map((a, 6.0), (b, 4.0), (d, 2.0), (g, 9.0)),
+    d -> Map((b, 2.0), (c, 2.0), (f, 8.0), (g, 9.0)),
+    e -> Map((a, 9.0), (b, 9.0), (f, 8.0), (j, 18.0)),
+    f -> Map((b, 9.0), (d, 8.0), (e, 8.0), (g, 7.0), (i, 9.0), (j, 10.0)),
+    g -> Map((c, 9.0), (d, 9.0), (f, 7.0), (i, 5.0), (h, 4.0)),
+    h -> Map((f, 4.0), (i, 1.0), (j, 4.0)),
+    i -> Map((f, 9.0), (g, 5.0), (h, 1.0), (j, 3.0)),
+    j -> Map((e, 18.0), (f, 10.0), (h, 4.0), (i, 3.0)))
 
   // init graph
   var fragmentId = 1
@@ -131,6 +155,6 @@ object GHSMain extends App {
   }
 
   Thread.sleep(1000)
-  
+
   system.shutdown()
 }
