@@ -22,6 +22,7 @@ case class Reject()
 case class Accept()
 case class Report(mwoe: Option[(Double,ActorRef)])
 case class Connect(fragmentLevel: Integer)
+case class ConnectPermission()
 case class ChangeCore()
 
 class GHS extends Actor {
@@ -50,6 +51,22 @@ class GHS extends Actor {
   
   var reportMwoeNode: Option[ActorRef] = None
 
+  def getMwoe : Option[(Double,ActorRef)] = {
+      if (neighbourBasic.isEmpty) {
+        None
+      } else {
+        var mwoeWeight = Double.MaxValue
+        var mwoeNode: ActorRef = null
+        for (n <- neighbourBasic) {
+          if (n._2 < mwoeWeight) {
+            mwoeWeight = n._2
+            mwoeNode = n._1
+          }
+        }
+        Some(mwoeWeight,mwoeNode)
+      }
+  }
+  
   def receive = {
 
     case InitNode(procs, fragmentID) =>
@@ -63,21 +80,14 @@ class GHS extends Actor {
       sender ! InitNodeCompleted()
 
     case Initiate() =>
-
       // send test to min basic edge
-      if (neighbourBasic.isEmpty) {
-        fragmentCore ! Report(None)
-      } else {
-        var minWeight = Double.MaxValue
-        var minEdge: ActorRef = null
-        for (n <- neighbourBasic) {
-          if (n._2 < minWeight) {
-            minWeight = n._2
-            minEdge = n._1
-          }
-        }
-        log.debug("Sending Test to " + minEdge.path.name + " from " + self.path.name)
-        minEdge ! Test(this.fragmentId, this.fragmentLevel)
+      val mwoe = getMwoe
+      mwoe match {
+        case None =>
+          fragmentCore ! Report(None)
+        case Some((mwoeWeight,mwoeNode)) =>
+          log.debug("Sending Test to " + mwoeNode.path.name + " from " + self.path.name)
+          mwoeNode ! Test(this.fragmentId, this.fragmentLevel)
       }
 
     case Test(fragmentId, fragmentLevel) =>
