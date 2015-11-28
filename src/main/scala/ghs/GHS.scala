@@ -1,11 +1,18 @@
 package ghs
 
-import akka.actor._
+import scala.annotation.migration
+import scala.concurrent.Await
+import scala.concurrent.duration.DurationInt
+import scala.language.postfixOps
+
+import akka.actor.Actor
+import akka.actor.ActorRef
+import akka.actor.ActorSystem
+import akka.actor.Props
+import akka.actor.actorRef2Scala
+import akka.event.Logging
 import akka.pattern.ask
 import akka.util.Timeout
-import scala.concurrent.{ Await, ExecutionContext, Future }
-import scala.concurrent.duration._
-import scala.language.postfixOps
 
 case class InitNode(neighbourProcs: Map[ActorRef, Double], fragmentId: Integer)
 case class InitNodeCompleted()
@@ -19,6 +26,8 @@ case class ChangeCore()
 
 class GHS extends Actor {
 
+  val log = Logging(context.system, this)  
+  
   var neighbourBasic: Map[ActorRef, Double] = null
 
   var neighbourBranch: Map[ActorRef, Double] = null
@@ -67,17 +76,17 @@ class GHS extends Actor {
             minEdge = n._1
           }
         }
-        //println("Sending Test to " + minEdge.path.name + " from " + self.path.name)
+        log.debug("Sending Test to " + minEdge.path.name + " from " + self.path.name)
         minEdge ! Test(this.fragmentId, this.fragmentLevel)
       }
 
     case Test(fragmentId, fragmentLevel) =>
-      //println("Received Test at " + self.path.name + " from " + sender.path.name)
+      log.debug("Received Test at " + self.path.name + " from " + sender.path.name)
       if (this.fragmentId == fragmentId) {
         sender ! Reject()
       } else {
         if (this.fragmentLevel >= fragmentLevel) {
-          //println("Sending Accept to " + sender.path.name + " from " + self.path.name)
+          log.debug("Sending Accept to " + sender.path.name + " from " + self.path.name)
           sender ! Accept()
         } else {
           // response is delayed
@@ -85,16 +94,16 @@ class GHS extends Actor {
       }
 
     case Reject() =>
-      println("Received Reject at " + self.path.name + " from " + sender.path.name)
+      log.debug("Received Reject at " + self.path.name + " from " + sender.path.name)
       fragmentCore ! Report(None)
 
     case Accept() =>
-      println("Received Accept at " + self.path.name + " from " + sender.path.name)
+      log.debug("Received Accept at " + self.path.name + " from " + sender.path.name)
       val w: Double = neighbourBasic.get(sender).get
       fragmentCore ! Report(Some(w,sender))
 
     case Report(mwoe) =>
-      println("Received Report at " + self.path.name + " from " + sender.path.name + ", mwoe -> " + mwoe)
+      log.debug("Received Report at " + self.path.name + " from " + sender.path.name + ", mwoe -> " + mwoe)
       mwoe match {
         case Some((mwoeWeight, mwoeNode)) =>
           reportAcceptedNum = reportAcceptedNum + 1;
@@ -112,7 +121,7 @@ class GHS extends Actor {
           reportEmptyNum = reportEmptyNum + 1;
       }
       if (reportAcceptedNum + reportEmptyNum == fragmentNodes.size) {
-        println("Report completed at " + self.path.name)
+        log.info("Report completed at " + self.path.name)
       }
   }
 
