@@ -13,7 +13,7 @@ case class Initiate()
 case class Test(fragementId: Integer, fragmentLevel: Integer)
 case class Reject()
 case class Accept()
-case class Report(weight: Option[Double])
+case class Report(mwoe: Option[(Double,ActorRef)])
 case class Connect(fragmentLevel: Integer)
 case class ChangeCore()
 
@@ -37,7 +37,9 @@ class GHS extends Actor {
 
   var reportEmptyNum: Integer = 0
 
-  var reportMwoe: Option[Double] = None
+  var reportMwoeWeight: Option[Double] = None
+  
+  var reportMwoeNode: Option[ActorRef] = None
 
   def receive = {
 
@@ -89,22 +91,25 @@ class GHS extends Actor {
     case Accept() =>
       println("Received Accept at " + self.path.name + " from " + sender.path.name)
       val w: Double = neighbourBasic.get(sender).get
-      fragmentCore ! Report(Some(w))
+      fragmentCore ! Report(Some(w,sender))
 
-    case Report(weight) =>
-      println("Received Report at " + self.path.name + " from " + sender.path.name + ", weight -> " + weight)
-      reportMwoe = weight match {
-        case Some(w) =>
+    case Report(mwoe) =>
+      println("Received Report at " + self.path.name + " from " + sender.path.name + ", mwoe -> " + mwoe)
+      mwoe match {
+        case Some((mwoeWeight, mwoeNode)) =>
           reportAcceptedNum = reportAcceptedNum + 1;
-          reportMwoe match {
+          reportMwoeWeight match {
             case None =>
-              Some(w)
-            case Some(mwoe) =>
-              Some(Math.min(mwoe, w))
+              reportMwoeWeight = Some(mwoeWeight)
+              reportMwoeNode = Some(mwoeNode)              
+            case Some(w) =>
+              if (mwoeWeight < w) {
+                reportMwoeWeight = Some(mwoeWeight)
+                reportMwoeNode = Some(mwoeNode)                              
+              }
           }
         case None =>
           reportEmptyNum = reportEmptyNum + 1;
-          reportMwoe
       }
       if (reportAcceptedNum + reportEmptyNum == fragmentNodes.size) {
         println("Report completed at " + self.path.name)
