@@ -22,8 +22,9 @@ case class Reject()
 case class Accept()
 case class Report(mwoe: Option[(Double, ActorRef)])
 case class InitConnect(mwoeNode: ActorRef)
-case class Connect(fragmentLevel: Integer)
-case class ChangeCore()
+case class Connect(fragmentLevel: Integer, fragmentId: Integer)
+case class InitChangeCore(fragmentLevel: Integer, fragmentCore: ActorRef)
+case class ChangeCore(fragmentLevel: Integer, fragmentCore: ActorRef)
 case class ChangeCoreCompleted()
 
 class GHS extends Actor {
@@ -143,11 +144,22 @@ class GHS extends Actor {
       }
 
     case InitConnect(mwoeNode) =>
-      mwoeNode ! Connect(fragmentLevel)
+      mwoeNode ! Connect(fragmentLevel, fragmentId)
       
-    case Connect(fragmentLevel) =>
-      // TODO
+    case Connect(fragmentLevel, fragmentId) =>
+      if (fragmentLevel < this.fragmentLevel) { // lower level fragment do not wait, merge it
+        sender ! InitChangeCore(this.fragmentLevel, this.fragmentCore);
+      }
+      else if (fragmentLevel == this.fragmentLevel) { // create new fragment at new level
+        // TODO
+      }
+      else {
+        // wait
+      }
 
+    case InitChangeCore(fragmentLevel, fragmentCore) =>
+      this.fragmentCore ! ChangeCore(fragmentLevel, fragmentCore)
+      
   }
 
 }
