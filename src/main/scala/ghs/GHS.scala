@@ -23,8 +23,7 @@ case class Accept()
 case class Report(mwoe: Option[(Double, ActorRef)])
 case class InitConnect(mwoeNode: ActorRef)
 case class Connect(fragmentLevel: Integer, fragmentId: Integer)
-case class InitChangeCore(fragmentLevel: Integer, fragmentCore: ActorRef)
-case class ChangeCore(fragmentLevel: Integer, fragmentCore: ActorRef)
+case class ChangeCore(newFragmentLevel: Option[Integer] = None, newFragmentCore: Option[ActorRef] = None, newFragmentNodes: Option[List[ActorRef]] = None)
 case class ChangeCoreCompleted()
 
 class GHS extends Actor {
@@ -45,15 +44,17 @@ class GHS extends Actor {
 
   var fragmentNodes: List[ActorRef] = null
 
-  var reportAcceptedNum: Integer = 0
+  var reportAcceptedCounter: Integer = 0
 
-  var reportEmptyNum: Integer = 0
+  var reportEmptyCounter: Integer = 0
 
   var reportMwoeWeight: Option[Double] = None
 
   var reportMwoeNode: ActorRef = null
 
   var reportMwoeSender: ActorRef = null
+
+  var changeCoreCounter: Integer = 0
 
   def getMwoe: Option[(Double, ActorRef)] = {
     if (neighbourBasic.isEmpty) {
@@ -120,7 +121,7 @@ class GHS extends Actor {
       log.debug("Received Report at " + self.path.name + " from " + sender.path.name + ", mwoe -> " + mwoe)
       mwoe match {
         case Some((mwoeWeight, mwoeNode)) =>
-          reportAcceptedNum = reportAcceptedNum + 1;
+          reportAcceptedCounter = reportAcceptedCounter + 1;
           reportMwoeWeight match {
             case None =>
               reportMwoeWeight = Some(mwoeWeight)
@@ -134,32 +135,51 @@ class GHS extends Actor {
               }
           }
         case None =>
-          reportEmptyNum = reportEmptyNum + 1;
+          reportEmptyCounter = reportEmptyCounter + 1;
       }
-      if (reportAcceptedNum + reportEmptyNum == fragmentNodes.size) {
+      if (reportAcceptedCounter + reportEmptyCounter == fragmentNodes.size) {
         log.info("Report completed at " + self.path.name)
-        if (reportAcceptedNum > 0) {
+        if (reportAcceptedCounter > 0) {
           reportMwoeSender ! InitConnect(reportMwoeNode)
         }
       }
 
     case InitConnect(mwoeNode) =>
       mwoeNode ! Connect(fragmentLevel, fragmentId)
-      
+
     case Connect(fragmentLevel, fragmentId) =>
       if (fragmentLevel < this.fragmentLevel) { // lower level fragment do not wait, merge it
-        sender ! InitChangeCore(this.fragmentLevel, this.fragmentCore);
-      }
-      else if (fragmentLevel == this.fragmentLevel) { // create new fragment at new level
+        sender ! ChangeCore(Some(this.fragmentLevel), Some(this.fragmentCore), Some(this.fragmentNodes));
+        self ! ChangeCore()
+      } else if (fragmentLevel == this.fragmentLevel) { // create new fragment at level+1
         // TODO
-      }
-      else {
+      } else {
         // wait
       }
 
-    case InitChangeCore(fragmentLevel, fragmentCore) =>
-      this.fragmentCore ! ChangeCore(fragmentLevel, fragmentCore)
-      
+    case ChangeCore(newFragmentLevel: Option[Integer], newFragmentCore: Option[ActorRef], newFragmentNodes: Option[List[ActorRef]]) =>
+
+      if (sender != this.fragmentCore) {
+        // resend to core
+        this.fragmentCore ! ChangeCore(newFragmentLevel, newFragmentCore, newFragmentNodes)        
+      } else {
+        // received from core
+        if (newFragmentLevel.isDefined) {
+          this.fragmentLevel = newFragmentLevel.get
+        }
+        if (newFragmentCore.isDefined) {
+          this.fragmentCore = newFragmentCore.get
+        }
+        if (newFragmentNodes.isDefined) {
+          this.fragmentNodes = newFragmentNodes.get ::: this.fragmentNodes
+        }
+        // confirm core
+        this.fragmentCore ! ChangeCoreCompleted()
+      }
+
+    case ChangeCoreCompleted() =>
+      changeCoreCounter = changeCoreCounter + 1;
+
   }
 
 }
