@@ -23,8 +23,8 @@ case class Accept()
 case class Report(mwoe: Option[(Double, ActorRef)])
 case class InitConnect(mwoeNode: ActorRef)
 case class Connect(fragmentLevel: Integer, fragmentId: Integer)
-case class ChangeCore(newFragmentLevel: Option[Integer] = None, newFragmentCore: Option[ActorRef] = None, newFragmentNodes: Option[List[ActorRef]] = None)
-case class ChangeCoreCompleted()
+case class ChangeFragment(newFragmentId: Option[Integer],, newFragmentLevel: Option[Integer], newFragmentCore: Option[ActorRef], newFragmentNodes: Option[List[ActorRef]])
+case class ChangeFragmentCompleted()
 
 class GHS extends Actor {
 
@@ -148,22 +148,34 @@ class GHS extends Actor {
       mwoeNode ! Connect(fragmentLevel, fragmentId)
 
     case Connect(fragmentLevel, fragmentId) =>
-      if (fragmentLevel < this.fragmentLevel) { // lower level fragment do not wait, merge it
-        sender ! ChangeCore(Some(this.fragmentLevel), Some(this.fragmentCore), Some(this.fragmentNodes));
-        self ! ChangeCore()
+      if (fragmentLevel < this.fragmentLevel) { // low level fragment is merged immediately
+        sender ! ChangeFragment(Some(this.fragmentId), Some(this.fragmentLevel), Some(this.fragmentCore), Some(this.fragmentNodes));
+        self ! ChangeFragment() // empty message for notification
       } else if (fragmentLevel == this.fragmentLevel) { // create new fragment at level+1
         // TODO
       } else {
         // wait
+        // TODO
       }
 
-    case ChangeCore(newFragmentLevel: Option[Integer], newFragmentCore: Option[ActorRef], newFragmentNodes: Option[List[ActorRef]]) =>
+    case ChangeFragment(newFragmentId: Option[Integer], newFragmentLevel: Option[Integer], newFragmentCore: Option[ActorRef], newFragmentNodes: Option[List[ActorRef]]) =>
 
-      if (sender != this.fragmentCore) {
-        // resend to core
-        this.fragmentCore ! ChangeCore(newFragmentLevel, newFragmentCore, newFragmentNodes)        
+      if (sender != this.fragmentCore) { // received from other fragment
+        if (self == fragmentCore) { // at current fragment core
+          // send to all nodes in current fragment
+          this.fragmentNodes foreach {
+            case (node) =>
+              node ! ChangeFragment(newFragmentId, newFragmentLevel, newFragmentCore, newFragmentNodes)
+          }
+        } else {
+          // or forward to current fragment core
+          this.fragmentCore forward ChangeFragment(newFragmentId, newFragmentLevel, newFragmentCore, newFragmentNodes)
+        }
       } else {
-        // received from core
+        // received from current fragment core
+        if (newFragmentId.isDefined) {
+          this.fragmentId = newFragmentId.get
+        }
         if (newFragmentLevel.isDefined) {
           this.fragmentLevel = newFragmentLevel.get
         }
@@ -174,10 +186,10 @@ class GHS extends Actor {
           this.fragmentNodes = newFragmentNodes.get ::: this.fragmentNodes
         }
         // confirm core
-        this.fragmentCore ! ChangeCoreCompleted()
+        this.fragmentCore ! ChangeFragmentCompleted()
       }
 
-    case ChangeCoreCompleted() =>
+    case ChangeFragmentCompleted() =>
       changeCoreCounter = changeCoreCounter + 1;
 
   }
