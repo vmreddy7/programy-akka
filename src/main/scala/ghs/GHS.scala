@@ -151,11 +151,17 @@ class GHS extends Actor {
       if (fragmentLevel < this.fragmentLevel) { // low level fragment is merged immediately
         sender ! ChangeFragment(Some(this.fragmentId), Some(this.fragmentLevel), Some(this.fragmentCore), Some(this.fragmentNodes));
         self ! ChangeFragment(None, None, None, None) // empty message for notification
-      } else if (fragmentLevel == this.fragmentLevel) { // create new fragment at level+1
-        // TODO
+      } else if (fragmentLevel == this.fragmentLevel) {
+        if (fragmentId > this.fragmentId) {
+          // create new fragment at level+1
+          val newFragmentLevel : Integer = fragmentLevel+1
+          // TODO
+        }
+        else {
+          // wait
+        }
       } else {
         // wait
-        // TODO
       }
 
     case ChangeFragment(newFragmentId: Option[Integer], newFragmentLevel: Option[Integer], newFragmentCore: Option[ActorRef], newFragmentNodes: Option[List[ActorRef]]) =>
