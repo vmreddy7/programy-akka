@@ -23,7 +23,7 @@ case class Accept()
 case class Report(mwoe: Option[(Double, ActorRef)])
 case class InitConnect(mwoeNode: ActorRef)
 case class Connect(fragmentLevel: Integer, fragmentId: Integer)
-case class ChangeFragment(newFragmentId: Option[Integer],, newFragmentLevel: Option[Integer], newFragmentCore: Option[ActorRef], newFragmentNodes: Option[List[ActorRef]])
+case class ChangeFragment(newFragmentId: Option[Integer], newFragmentLevel: Option[Integer], newFragmentCore: Option[ActorRef], newFragmentNodes: Option[List[ActorRef]])
 case class ChangeFragmentCompleted()
 
 class GHS extends Actor {
