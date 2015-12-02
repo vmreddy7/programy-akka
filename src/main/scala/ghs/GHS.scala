@@ -22,8 +22,8 @@ case class Reject()
 case class Accept()
 case class Report(mwoe: Option[(Double, ActorRef)])
 case class InitConnect(mwoeNode: ActorRef)
-case class Connect(fragmentLevel: Integer, fragmentId: Integer)
-case class ChangeFragment(newFragmentId: Option[Integer], newFragmentLevel: Option[Integer], newFragmentCore: Option[ActorRef], newFragmentNodes: Option[List[ActorRef]])
+case class Connect(fragmentLevel: Integer, fragmentId: Integer, fragmentCore: ActorRef, fragmentNodes: List[ActorRef])
+case class ChangeFragment(newFragmentId: Option[Integer] = None, newFragmentLevel: Option[Integer] = None, newFragmentCore: Option[ActorRef] = None, newFragmentNodes: Option[List[ActorRef]] = None)
 case class ChangeFragmentCompleted()
 
 class GHS extends Actor {
@@ -145,17 +145,17 @@ class GHS extends Actor {
       }
 
     case InitConnect(mwoeNode) =>
-      mwoeNode ! Connect(fragmentLevel, fragmentId)
+      mwoeNode ! Connect(fragmentLevel, fragmentId, fragmentCore, fragmentNodes)
 
-    case Connect(fragmentLevel, fragmentId) =>
+    case Connect(fragmentLevel, fragmentId, fragmentCore, fragmentNodes) =>
       if (fragmentLevel < this.fragmentLevel) { // low level fragment is merged immediately
-        sender ! ChangeFragment(Some(this.fragmentId), Some(this.fragmentLevel), Some(this.fragmentCore), Some(this.fragmentNodes));
-        self ! ChangeFragment(None, None, None, None) // empty message for notification
+        self ! ChangeFragment()
+        sender ! ChangeFragment(Some(this.fragmentId), Some(this.fragmentLevel), Some(this.fragmentCore), Some(this.fragmentNodes));        
       } else if (fragmentLevel == this.fragmentLevel) {
         if (fragmentId > this.fragmentId) {
           // create new fragment at level+1
-          val newFragmentLevel : Integer = fragmentLevel+1
-          // TODO
+          self ! ChangeFragment(Some(fragmentId), Some(fragmentLevel+1), Some(fragmentCore), Some(fragmentNodes));
+          sender ! ChangeFragment(None, Some(fragmentLevel+1), None, Some(this.fragmentNodes));
         }
         else {
           // wait
