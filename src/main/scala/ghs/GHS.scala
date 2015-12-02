@@ -166,7 +166,7 @@ class GHS extends Actor {
 
     case ChangeFragment(newFragmentId: Option[Integer], newFragmentLevel: Option[Integer], newFragmentCore: Option[ActorRef], newFragmentNodes: Option[Set[ActorRef]]) =>
 
-      if (sender != this.fragmentCore) { // received from other fragment
+      if (sender != fragmentCore) { // received from other than current core
         if (self == fragmentCore) { // at current fragment core
           // send to all nodes in current fragment
           this.fragmentNodes foreach {
@@ -197,6 +197,7 @@ class GHS extends Actor {
 
     case ChangeFragmentCompleted() =>
       changeCoreCounter = changeCoreCounter + 1;
+      // TODO
 
   }
 
