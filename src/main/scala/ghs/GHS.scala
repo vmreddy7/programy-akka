@@ -22,8 +22,8 @@ case class Reject()
 case class Accept()
 case class Report(mwoe: Option[(Double, ActorRef)])
 case class InitConnect(mwoeNode: ActorRef)
-case class Connect(fragmentLevel: Integer, fragmentId: Integer, fragmentCore: ActorRef, fragmentNodes: List[ActorRef])
-case class ChangeFragment(newFragmentId: Option[Integer] = None, newFragmentLevel: Option[Integer] = None, newFragmentCore: Option[ActorRef] = None, newFragmentNodes: Option[List[ActorRef]] = None)
+case class Connect(fragmentLevel: Integer, fragmentId: Integer, fragmentCore: ActorRef, fragmentNodes: Set[ActorRef])
+case class ChangeFragment(newFragmentId: Option[Integer] = None, newFragmentLevel: Option[Integer] = None, newFragmentCore: Option[ActorRef] = None, newFragmentNodes: Option[Set[ActorRef]] = None)
 case class ChangeFragmentCompleted()
 
 class GHS extends Actor {
@@ -42,7 +42,7 @@ class GHS extends Actor {
 
   var fragmentCore: ActorRef = null
 
-  var fragmentNodes: List[ActorRef] = null
+  var fragmentNodes: Set[ActorRef] = null
 
   var reportAcceptedCounter: Integer = 0
 
@@ -81,7 +81,7 @@ class GHS extends Actor {
       this.fragmentId = fragmentID
       this.fragmentLevel = 0
       this.fragmentCore = self
-      this.fragmentNodes = List(fragmentCore)
+      this.fragmentNodes = Set(fragmentCore)
       sender ! InitNodeCompleted()
 
     case InitTest() =>
@@ -164,7 +164,7 @@ class GHS extends Actor {
         // wait
       }
 
-    case ChangeFragment(newFragmentId: Option[Integer], newFragmentLevel: Option[Integer], newFragmentCore: Option[ActorRef], newFragmentNodes: Option[List[ActorRef]]) =>
+    case ChangeFragment(newFragmentId: Option[Integer], newFragmentLevel: Option[Integer], newFragmentCore: Option[ActorRef], newFragmentNodes: Option[Set[ActorRef]]) =>
 
       if (sender != this.fragmentCore) { // received from other fragment
         if (self == fragmentCore) { // at current fragment core
@@ -189,7 +189,7 @@ class GHS extends Actor {
           this.fragmentCore = newFragmentCore.get
         }
         if (newFragmentNodes.isDefined) {
-          this.fragmentNodes = newFragmentNodes.get ::: this.fragmentNodes
+          this.fragmentNodes = newFragmentNodes.get ++ this.fragmentNodes
         }
         // confirm core
         this.fragmentCore ! ChangeFragmentCompleted()
