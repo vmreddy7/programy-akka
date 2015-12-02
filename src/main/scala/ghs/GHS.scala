@@ -150,7 +150,7 @@ class GHS extends Actor {
     case Connect(fragmentLevel, fragmentId) =>
       if (fragmentLevel < this.fragmentLevel) { // low level fragment is merged immediately
         sender ! ChangeFragment(Some(this.fragmentId), Some(this.fragmentLevel), Some(this.fragmentCore), Some(this.fragmentNodes));
-        self ! ChangeFragment() // empty message for notification
+        self ! ChangeFragment(None, None, None, None) // empty message for notification
       } else if (fragmentLevel == this.fragmentLevel) { // create new fragment at level+1
         // TODO
       } else {
