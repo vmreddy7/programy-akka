@@ -85,23 +85,24 @@ class GHS extends Actor {
       sender ! InitNodeCompleted()
 
     case InitTest() =>
+      changeCoreCounter = 0;
       // send test to min basic edge
       val mwoe = getMwoe
       mwoe match {
         case None =>
           fragmentCore ! Report(None)
         case Some((mwoeWeight, mwoeNode)) =>
-          log.debug("Sending Test to " + mwoeNode.path.name + " from " + self.path.name)
+          log.debug("Sending 'Test' to " + mwoeNode.path.name + " from " + self.path.name)
           mwoeNode ! Test(this.fragmentId, this.fragmentLevel)
       }
 
     case Test(fragmentId, fragmentLevel) =>
-      log.debug("Received Test at " + self.path.name + " from " + sender.path.name)
+      log.debug("Received 'Test' at " + self.path.name + " from " + sender.path.name)
       if (this.fragmentId == fragmentId) {
         sender ! Reject()
       } else {
         if (this.fragmentLevel >= fragmentLevel) {
-          log.debug("Sending Accept to " + sender.path.name + " from " + self.path.name)
+          log.debug("Sending 'Accept' to " + sender.path.name + " from " + self.path.name)
           sender ! Accept()
         } else {
           // response is delayed
@@ -109,16 +110,16 @@ class GHS extends Actor {
       }
 
     case Reject() =>
-      log.debug("Received Reject at " + self.path.name + " from " + sender.path.name)
+      log.debug("Received 'Reject' at " + self.path.name + " from " + sender.path.name)
       fragmentCore ! Report(None)
 
     case Accept() =>
-      log.debug("Received Accept at " + self.path.name + " from " + sender.path.name)
+      log.debug("Received 'Accept' at " + self.path.name + " from " + sender.path.name)
       val w: Double = neighbourBasic.get(sender).get
       fragmentCore ! Report(Some(w, sender))
 
     case Report(mwoe) =>
-      log.debug("Received Report at " + self.path.name + " from " + sender.path.name + ", mwoe -> " + mwoe)
+      log.debug("Received 'Report' at " + self.path.name + " from " + sender.path.name + ", mwoe -> " + mwoe)
       mwoe match {
         case Some((mwoeWeight, mwoeNode)) =>
           reportAcceptedCounter = reportAcceptedCounter + 1;
@@ -148,12 +149,13 @@ class GHS extends Actor {
       mwoeNode ! Connect(fragmentLevel, fragmentId, fragmentCore, fragmentNodes)
 
     case Connect(fragmentLevel, fragmentId, fragmentCore, fragmentNodes) =>
-      if (fragmentLevel < this.fragmentLevel) { // low level fragment is merged immediately
+      if (fragmentLevel < this.fragmentLevel) {
+        // connect accepted, low level fragment is merged immediately
         self ! ChangeFragment()
         sender ! ChangeFragment(Some(this.fragmentId), Some(this.fragmentLevel), Some(this.fragmentCore), Some(this.fragmentNodes));        
       } else if (fragmentLevel == this.fragmentLevel) {
         if (fragmentId > this.fragmentId) {
-          // create new fragment at level+1
+          // connect accepted, create new fragment at level+1
           self ! ChangeFragment(Some(fragmentId), Some(fragmentLevel+1), Some(fragmentCore), Some(fragmentNodes));
           sender ! ChangeFragment(None, Some(fragmentLevel+1), None, Some(this.fragmentNodes));
         }
@@ -166,9 +168,10 @@ class GHS extends Actor {
 
     case ChangeFragment(newFragmentId: Option[Integer], newFragmentLevel: Option[Integer], newFragmentCore: Option[ActorRef], newFragmentNodes: Option[Set[ActorRef]]) =>
 
-      if (sender != fragmentCore) { // received from other than current core
-        if (self == fragmentCore) { // at current fragment core
-          // send to all nodes in current fragment
+      if (sender != fragmentCore) {
+        // received from other than current core
+        if (self == fragmentCore) {
+          // at current fragment core
           this.fragmentNodes foreach {
             case (node) =>
               node ! ChangeFragment(newFragmentId, newFragmentLevel, newFragmentCore, newFragmentNodes)
@@ -197,7 +200,9 @@ class GHS extends Actor {
 
     case ChangeFragmentCompleted() =>
       changeCoreCounter = changeCoreCounter + 1;
-      // TODO
+      if (changeCoreCounter == this.fragmentNodes.size) {
+        log.info("Received all 'ChangeFragmentCompleted' at " + self.path.name)
+      }
 
   }
 
