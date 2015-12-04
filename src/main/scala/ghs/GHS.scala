@@ -139,7 +139,7 @@ class GHS extends Actor {
           reportEmptyCounter = reportEmptyCounter + 1;
       }
       if (reportAcceptedCounter + reportEmptyCounter == fragmentNodes.size) {
-        log.info("Report completed at " + self.path.name)
+        log.info("Received all 'Report' at " + self.path.name)
         if (reportAcceptedCounter > 0) {
           reportMwoeSender ! InitConnect(reportMwoeNode)
         }
