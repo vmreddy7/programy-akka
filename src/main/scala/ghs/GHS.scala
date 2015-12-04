@@ -158,8 +158,6 @@ class GHS extends Actor {
           // connect accepted, create new fragment at level+1
           self ! ChangeFragment(otherFragmentId, otherFragmentLevel + 1, otherFragmentCore, this.fragmentNodes ++ otherFragmentNodes);
           sender ! ChangeFragment(otherFragmentId, otherFragmentLevel + 1, otherFragmentCore, this.fragmentNodes ++ otherFragmentNodes);
-        } else {
-          // wait TODO
         }
       } else {
         // wait TODO
