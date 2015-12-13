@@ -16,7 +16,7 @@ import akka.util.Timeout
 
 case class InitNode(neighbourProcs: Map[ActorRef, Double], fragmentId: Integer)
 case class InitNodeCompleted()
-case class InitTest()
+case class Initiate()
 case class Test(fragementId: Integer, fragmentLevel: Integer)
 case class Reject()
 case class Accept()
@@ -84,7 +84,7 @@ class GHS extends Actor {
       this.fragmentNodes = Set(fragmentCore)
       sender ! InitNodeCompleted()
 
-    case InitTest() =>
+    case Initiate() =>
       changeCoreCounter = 0;
       // send test to min basic edge
       val mwoe = getMwoe
@@ -149,6 +149,7 @@ class GHS extends Actor {
       mwoeNode ! Connect(fragmentLevel, fragmentId, fragmentCore, fragmentNodes)
 
     case Connect(otherFragmentLevel, otherFragmentId, otherFragmentCore, otherFragmentNodes) =>
+      // TODO ChangeFragment is obsolete, use Initiate(state) instead (AGHS_MST)
       if (otherFragmentLevel < this.fragmentLevel) {
         // connect accepted, low level fragment is merged immediately
         self ! ChangeFragment(this.fragmentId, this.fragmentLevel, this.fragmentCore, this.fragmentNodes ++ otherFragmentNodes);
@@ -240,7 +241,7 @@ object GHSMain extends App {
   }
 
   graph.keys.foreach { node =>
-    node ! InitTest()
+    node ! Initiate()
   }
 
   Thread.sleep(1000)
