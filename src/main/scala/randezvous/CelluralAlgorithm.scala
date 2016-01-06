@@ -8,7 +8,7 @@ case class Probe(v: Integer)
 
 abstract class CellularAlgorithm extends Actor {
 
-  val rnd = new Random(System.currentTimeMillis())
+  val rnd = new Random()
 
   var neighbourProcs = List.empty[ActorRef]
   var neighborDoor = 0

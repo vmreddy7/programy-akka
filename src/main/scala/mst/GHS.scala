@@ -1,4 +1,4 @@
-package ghs
+package mst
 
 import scala.annotation.migration
 import scala.concurrent.Await
