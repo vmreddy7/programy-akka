@@ -58,7 +58,7 @@ class Luby extends Actor {
   def receive = {
 
     case InitNode(procs) =>
-      this.neighbours = procs      
+      this.neighbours = procs
       sender ! InitNodeCompleted()
 
     case Initiate(round) =>
@@ -81,6 +81,7 @@ class Luby extends Actor {
       com_proposal_messages(sender) = proposalVal
 
       if (com_proposal_messages.size == com_with.size) { // all messages received
+        log.info("Completed proposal at " + self.path.name + ", round " + this.round_no)
         var selected = true
         com_proposal_messages.values.foreach { v =>
           if (v >= proposed_val.get) {
@@ -88,6 +89,7 @@ class Luby extends Actor {
           }
         }
         if (selected) {
+          log.info("Selected at " + self.path.name)
           self ! ChangeState(In)
         }
         com_with.foreach { node =>
@@ -107,6 +109,7 @@ class Luby extends Actor {
         com_selected = Some(true)
       }
       if (com_selected_messages.size == com_with.size) { // all messages received
+        log.info("Completed selected at " + self.path.name + ", round " + this.round_no)
         if (com_selected.get) {
           // node is eliminated
           com_selected_messages.foreach((e: (ActorRef, Boolean)) =>
@@ -118,12 +121,6 @@ class Luby extends Actor {
           com_with.foreach { node =>
             node ! Eliminated(false)
           }
-          if (com_with.isEmpty) {
-            self ! ChangeState(In)
-          }
-          else {
-            self ! Initiate(round_no + 1)
-          }
         }
       }
 
@@ -131,10 +128,19 @@ class Luby extends Actor {
       // update messages
       com_eliminated_messages(sender) = eliminatedVal
 
-      com_eliminated_messages.foreach((e: (ActorRef, Boolean)) =>
-        if (e._2) {
-          com_with -= e._1
-        })
+      if (com_eliminated_messages.size == com_with.size) { // all messages received
+        log.info("Completed eliminated at " + self.path.name + ", round " + this.round_no)
+        com_eliminated_messages.foreach((e: (ActorRef, Boolean)) =>
+          if (e._2) {
+            com_with -= e._1
+          })
+        if (com_with.isEmpty) {
+          self ! ChangeState(In)
+        } else {
+          self ! Initiate(round_no + 1)
+        }
+
+      }
 
   }
 
