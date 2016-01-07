@@ -4,6 +4,7 @@ import scala.annotation.migration
 import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
+import scala.util.Random
 import akka.actor.Actor
 import akka.actor.ActorRef
 import akka.actor.ActorSystem
@@ -12,7 +13,15 @@ import akka.actor.actorRef2Scala
 import akka.event.Logging
 import akka.pattern.ask
 import akka.util.Timeout
-import scala.util.Random
+import scala.collection.mutable.ListBuffer
+
+import scala.collection.mutable.ArrayBuffer
+
+object State extends Enumeration {
+  type State = Value
+  val Find, In, Out = Value
+}
+import State._
 
 case class InitNode(neighbourProcs: List[ActorRef])
 case class InitNodeCompleted()
@@ -20,6 +29,7 @@ case class Initiate(round: Integer)
 case class Proposal(proposalVal: Double)
 case class Selected(selectedVal: Boolean)
 case class Eliminated(eliminatedVal: Boolean)
+case class ChangeState(state: State)
 
 class Luby extends Actor {
 
@@ -29,59 +39,103 @@ class Luby extends Actor {
 
   var neighbours: List[ActorRef] = null
 
-  var com_with: List[ActorRef] = null
+  var com_with: ArrayBuffer[ActorRef] = null
 
   var round_no: Integer = null
 
   var proposed_val: Option[Double] = None
-  
-  var com_proposal: scala.collection.mutable.Map[ActorRef, Double] = null
 
-  var com_selected: scala.collection.mutable.Map[ActorRef, Boolean] = null
+  var com_proposal_messages: scala.collection.mutable.Map[ActorRef, Double] = null
 
-  var com_selected_true: Option[Boolean] = None
-  
+  var com_selected_messages: scala.collection.mutable.Map[ActorRef, Boolean] = null
+
+  var com_eliminated_messages: scala.collection.mutable.Map[ActorRef, Boolean] = null
+
+  var com_selected: Option[Boolean] = None
+
+  var state: State = null
+
   def receive = {
 
     case InitNode(procs) =>
-      this.neighbours = procs
-      this.com_with = procs
+      this.neighbours = procs      
       sender ! InitNodeCompleted()
 
     case Initiate(round) =>
+      log.debug("Initiating round " + round + " at " + self.path.name)
       this.round_no = round
+      this.com_with = ArrayBuffer[ActorRef]()
+      this.com_with ++= neighbours
       this.proposed_val = Some(rnd.nextDouble());
-      this.com_proposal = scala.collection.mutable.Map[ActorRef, Double]()
-      this.com_selected = scala.collection.mutable.Map[ActorRef, Boolean]()
-      this.com_selected_true = Some(false)
+      this.com_proposal_messages = scala.collection.mutable.Map[ActorRef, Double]()
+      this.com_selected_messages = scala.collection.mutable.Map[ActorRef, Boolean]()
+      this.com_eliminated_messages = scala.collection.mutable.Map[ActorRef, Boolean]()
+      this.com_selected = Some(false)
+      this.state = Find
       com_with.foreach { node =>
         node ! Proposal(proposed_val.get)
       }
 
     case Proposal(proposalVal) =>
-      com_proposal(sender) = proposalVal
-      if (com_proposal.size == com_with.size) {
+      // update messages
+      com_proposal_messages(sender) = proposalVal
+
+      if (com_proposal_messages.size == com_with.size) { // all messages received
         var selected = true
-        com_proposal.values.foreach { v =>
+        com_proposal_messages.values.foreach { v =>
           if (v >= proposed_val.get) {
             selected = false
           }
+        }
+        if (selected) {
+          self ! ChangeState(In)
         }
         com_with.foreach { node =>
           node ! Selected(selected)
         }
       }
 
+    case ChangeState(state) =>
+      log.info("Returning into " + state + " at " + self.path.name)
+      context.stop(self)
+
     case Selected(selectedVal) =>
-      com_selected(sender) = selectedVal
+      // update messages
+      com_selected_messages(sender) = selectedVal
+
       if (selectedVal) {
-        com_selected_true = Some(true)
+        com_selected = Some(true)
       }
-      if (com_selected.size == com_with.size) {
-        if (com_selected_true.get) {
-          // TODO
+      if (com_selected_messages.size == com_with.size) { // all messages received
+        if (com_selected.get) {
+          // node is eliminated
+          com_selected_messages.foreach((e: (ActorRef, Boolean)) =>
+            if (!e._2) {
+              e._1 ! Eliminated(true)
+            })
+          self ! ChangeState(Out)
+        } else {
+          com_with.foreach { node =>
+            node ! Eliminated(false)
+          }
+          if (com_with.isEmpty) {
+            self ! ChangeState(In)
+          }
+          else {
+            self ! Initiate(round_no + 1)
+          }
         }
       }
+
+    case Eliminated(eliminatedVal) =>
+      // update messages
+      com_eliminated_messages(sender) = eliminatedVal
+
+      com_eliminated_messages.foreach((e: (ActorRef, Boolean)) =>
+        if (e._2) {
+          com_with -= e._1
+        })
+
   }
 
 }
