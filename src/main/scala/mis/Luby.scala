@@ -62,7 +62,7 @@ class Luby extends Actor {
       sender ! InitNodeCompleted()
 
     case Initiate(round) =>
-      log.debug("Initiating round " + round + " at " + self.path.name)
+      log.info("Initiating round " + round + " at " + self.path.name)
       this.round_no = round
       this.com_with = ArrayBuffer[ActorRef]()
       this.com_with ++= neighbours
