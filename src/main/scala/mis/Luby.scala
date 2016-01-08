@@ -59,19 +59,24 @@ class Luby extends Actor {
 
     case InitNode(procs) =>
       this.neighbours = procs
+      this.com_with = ArrayBuffer[ActorRef]()
+      this.com_with ++= neighbours
+      this.state = Find
+      this.com_proposal_messages = scala.collection.mutable.Map[ActorRef, Double]()
+      this.com_selected_messages = scala.collection.mutable.Map[ActorRef, Boolean]()
+      this.com_eliminated_messages = scala.collection.mutable.Map[ActorRef, Boolean]()
       sender ! InitNodeCompleted()
 
     case Initiate(round) =>
       log.info("Initiating round " + round + " at " + self.path.name)
       this.round_no = round
-      this.com_with = ArrayBuffer[ActorRef]()
-      this.com_with ++= neighbours
-      this.proposed_val = Some(rnd.nextDouble());
-      this.com_proposal_messages = scala.collection.mutable.Map[ActorRef, Double]()
-      this.com_selected_messages = scala.collection.mutable.Map[ActorRef, Boolean]()
-      this.com_eliminated_messages = scala.collection.mutable.Map[ActorRef, Boolean]()
+      this.com_proposal_messages.clear()
+      this.com_selected_messages.clear()
       this.com_selected = Some(false)
-      this.state = Find
+      this.com_eliminated_messages.clear()
+      
+      // propose value
+      this.proposed_val = Some(rnd.nextDouble());
       com_with.foreach { node =>
         node ! Proposal(proposed_val.get)
       }
@@ -99,10 +104,10 @@ class Luby extends Actor {
 
     case ChangeState(state) =>
       log.info("Returning into " + state + " at " + self.path.name)
-      context.stop(self)
+      this.state = state
 
     case Selected(selectedVal) =>
-      // update messages
+      // update messages  
       com_selected_messages(sender) = selectedVal
 
       if (selectedVal) {
@@ -139,7 +144,6 @@ class Luby extends Actor {
         } else {
           self ! Initiate(round_no + 1)
         }
-
       }
 
   }
