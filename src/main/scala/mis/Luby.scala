@@ -84,6 +84,7 @@ class Luby extends Actor {
     case Proposal(proposalVal) =>
       // update messages
       com_proposal_messages(sender) = proposalVal
+      log.info("Received proposal at " + self.path.name + ", round " + this.round_no)
 
       if (com_proposal_messages.size == com_with.size) { // all messages received
         log.info("Completed proposal at " + self.path.name + ", round " + this.round_no)
@@ -105,11 +106,13 @@ class Luby extends Actor {
     case ChangeState(state) =>
       log.info("Returning into " + state + " at " + self.path.name)
       this.state = state
+      context.stop(self)
 
     case Selected(selectedVal) =>
       // update messages  
       com_selected_messages(sender) = selectedVal
-
+      log.info("Received selected at " + self.path.name + ", round " + this.round_no)
+      
       if (selectedVal) {
         com_selected = Some(true)
       }
@@ -132,6 +135,7 @@ class Luby extends Actor {
     case Eliminated(eliminatedVal) =>
       // update messages
       com_eliminated_messages(sender) = eliminatedVal
+      log.info("Received eliminated at " + self.path.name + ", round " + this.round_no)
 
       if (com_eliminated_messages.size == com_with.size) { // all messages received
         log.info("Completed eliminated at " + self.path.name + ", round " + this.round_no)
@@ -158,25 +162,31 @@ object LubyMain extends App {
   val c = system.actorOf(Props[Luby], name = "c")
   val d = system.actorOf(Props[Luby], name = "d")
   val e = system.actorOf(Props[Luby], name = "e")
-  val f = system.actorOf(Props[Luby], name = "f")
-  val g = system.actorOf(Props[Luby], name = "g")
-  val h = system.actorOf(Props[Luby], name = "h")
-  val i = system.actorOf(Props[Luby], name = "i")
-  val j = system.actorOf(Props[Luby], name = "j")
+//  val f = system.actorOf(Props[Luby], name = "f")
+//  val g = system.actorOf(Props[Luby], name = "g")
+//  val h = system.actorOf(Props[Luby], name = "h")
+//  val i = system.actorOf(Props[Luby], name = "i")
+//  val j = system.actorOf(Props[Luby], name = "j")
 
   implicit val timeout = Timeout(5 seconds)
 
   val graph = Map(
-    a -> List(b, c, e),
-    b -> List(a, c, d, f, e),
-    c -> List(a, b, d, g),
-    d -> List(b, c, f, g),
-    e -> List(a, b, f, j),
-    f -> List(b, d, e, g, i, j),
-    g -> List(c, d, f, i, h),
-    h -> List(f, i, j),
-    i -> List(f, g, h, j),
-    j -> List(e, f, h, i))
+    a -> List(b, d),
+    b -> List(a, c),
+    c -> List(b, d),
+    d -> List(a, c, e),
+    e -> List(d))
+      
+//    a -> List(b, c, e),
+//    b -> List(a, c, d, f, e),
+//    c -> List(a, b, d, g),
+//    d -> List(b, c, f, g),
+//    e -> List(a, b, f, j),
+//    f -> List(b, d, e, g, i, j),
+//    g -> List(c, d, f, i, h),
+//    h -> List(f, i, j),
+//    i -> List(f, g, h, j),
+//    j -> List(e, f, h, i))
 
   // init graph
   graph.foreach {
@@ -189,7 +199,7 @@ object LubyMain extends App {
     node ! Initiate(1)
   }
 
-  Thread.sleep(1000)
+  Thread.sleep(5000)
 
   system.shutdown()
 }
