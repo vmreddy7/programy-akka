@@ -26,7 +26,7 @@ object EdgeState extends Enumeration {
 }
 import EdgeState._
 
-case class Edge(state: EdgeState, weight: Double, node: ActorRef)
+case class Edge(state: EdgeState, weight: Double)
 
 // messages
 case class InitActor(neighbourProcs: Map[ActorRef, Double], id: Integer)
@@ -34,6 +34,9 @@ case class InitActorCompleted()
 case class Wakeup()
 case class Connect(level: Integer)
 case class Initiate(level: Integer, id: Integer, state: NodeState)
+case class Test(level: Integer, id: Integer)
+case class Accept()
+case class Reject()
 
 /**
   * Scala/Akka implementation of GHS distributed minimum spanning tree algorithm
@@ -60,19 +63,19 @@ class GHS extends Actor {
       this.mst = scala.collection.mutable.ArrayBuffer()
       procs.keys.foreach { nb =>
         val weight = procs(nb)
-        edges += (nb -> new Edge(Basic, weight, nb))
+        edges += (nb -> new Edge(Basic, weight))
       }
       this.id = id;
       sender ! InitActorCompleted()
 
     case Wakeup() =>
       log.info("Received 'Wakeup' at " + self.path.name + " from " + sender.path.name)
-      val minEdgeOption = findMinEdge
+      val minEdgeOption = findMinEdge()
       minEdgeOption match {
         case None =>
           log.warning("No neighbours found, finishing.")
         case Some((minNode, minWeight)) =>
-          this.edges(minNode) = new Edge(Branch, edges(minNode).weight, edges(minNode).node)
+          this.edges(minNode) = new Edge(Branch, edges(minNode).weight)
           this.mst += minNode
           this.level = 0
           this.state = Found
@@ -84,7 +87,7 @@ class GHS extends Actor {
       log.info("Received 'Connect' at " + self.path.name + " from " + sender.path.name)
       if (level < this.level) {
         // absorb fragment
-        this.edges(sender) = new Edge(Branch, edges(sender).weight, edges(sender).node)
+        this.edges(sender) = new Edge(Branch, edges(sender).weight)
         sender ! Initiate(this.level, this.id, this.state)
       }
       else if (edges(sender).state == Basic) {
@@ -113,14 +116,57 @@ class GHS extends Actor {
         test()
       }
 
+    case Test(level, id) =>
+      if (level > this.level) {
+        // skip
+      }
+      else if (id == this.id) {
+        // reject
+        if (this.edges(sender).state == Basic) {
+          this.edges(sender) = new Edge(Rejected, edges(sender).weight)
+        }
+        if (sender != this.testEdge) {
+          sender ! Reject()
+        }
+        else {
+          test()
+        }
+      }
+      else {
+        // accept
+        sender ! Accept()
+      }
+
 
   }
 
   def test() = {
+    var min : Double = Double.MaxValue
+    var min_nb : ActorRef = null
+    edges.keys.foreach { nb =>
+      val edge = edges(nb)
+      if (edge.state == Basic) {
+        if (edge.weight < min) {
+          min = edge.weight
+          min_nb = nb
+        }
+      }
+    }
+    if (min_nb != null) {
+      this.testEdge = min_nb
+      min_nb ! Test(this.level, this.id)
+    }
+    else {
+      this.testEdge = null
+      report()
+    }
+  }
+
+  def report() = {
 
   }
 
-  def findMinEdge: Option[(ActorRef,Double)] = {
+  def findMinEdge(): Option[(ActorRef,Double)] = {
     if (edges.isEmpty) {
       None
     } else {
