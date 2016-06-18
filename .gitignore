@@ -1,3 +1,12 @@
+build
+target
+.classpath
+.project
+.settings
+.cache
+/bin/
+.cache-main
+
 # Ignore Gradle GUI config
 gradle-app.setting
 
