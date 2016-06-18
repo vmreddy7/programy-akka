@@ -89,7 +89,7 @@ class GHS extends Actor {
         sender ! Initiate(this.level, this.id, this.state)
       }
       else if (edges(sender).state == Basic) {
-        sender ! Connect(level)
+        // skip
       }
       else {
         // create new fragment
