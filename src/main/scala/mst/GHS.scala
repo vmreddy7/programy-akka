@@ -188,7 +188,7 @@ class GHS extends Actor {
     val minEdgeOption = findMinEdge()
     minEdgeOption match {
       case None =>
-        log.warning("No neighbours found, finishing.")
+        log.warning("No neighbours found.")
       case Some((minNode, minWeight)) =>
         this.edges(minNode) = new Edge(Branch, edges(minNode).weight)
         this.mst += minNode
