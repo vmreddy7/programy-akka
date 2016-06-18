@@ -31,6 +31,9 @@ case class Selected(selectedVal: Boolean)
 case class Eliminated(eliminatedVal: Boolean)
 case class ChangeState(state: State)
 
+/**
+  * Scala/Akka implementation of Luby distributed maximal independent set algorithm
+  */
 class Luby extends Actor {
 
   val log = Logging(context.system, this)

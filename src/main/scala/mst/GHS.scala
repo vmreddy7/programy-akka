@@ -26,6 +26,9 @@ case class InitActor(neighbourProcs: Map[ActorRef, Double], fragmentId: Integer)
 case class InitActorCompleted()
 case class Wakeup()
 
+/**
+  * Scala/Akka implementation of GHS distributed minimum spanning tree algorithm
+  */
 class GHS extends Actor {
 
   val log = Logging(context.system, this)
@@ -58,6 +61,23 @@ class GHS extends Actor {
       this.id = Integer.MAX_VALUE;
 
       sender ! InitActorCompleted()
+  }
+
+  def findMinEdge: Option[ActorRef] = {
+    if (edges.isEmpty) {
+      None
+    } else {
+      var mwoeWeight = Double.MaxValue
+      var mwoeNode: ActorRef = null
+      edges.keys.foreach { nb =>
+        val edge = edges(nb)
+        if (edge.weight < mwoeWeight) {
+          mwoeWeight = edge.weight
+          mwoeNode = nb
+        }
+      }
+      Some(mwoeNode)
+    }
   }
 
 }

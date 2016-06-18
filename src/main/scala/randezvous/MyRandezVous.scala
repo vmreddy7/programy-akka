@@ -4,6 +4,9 @@ import akka.actor._
 
 case class Hello(response: Boolean)
 
+/**
+  * Scala/Akka implementation of probabilistic distributed rendez-vous algorithm
+  */
 class MyRandezVous extends CellularAlgorithm {
 
   def communicate(x: ActorRef) {
