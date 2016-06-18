@@ -15,7 +15,7 @@ import akka.pattern.ask
 import akka.util.Timeout
 
 case class InitActor(neighbourProcs: Map[ActorRef, Double], fragmentId: Integer)
-case class InitNodeCompleted()
+case class InitActorCompleted()
 case class Initiate()
 case class Test(fragementId: Integer, fragmentLevel: Integer)
 case class Reject()
@@ -82,7 +82,7 @@ class GHS extends Actor {
       this.fragmentLevel = 0
       this.fragmentCore = self
       this.fragmentNodes = Set(fragmentCore)
-      sender ! InitNodeCompleted()
+      sender ! InitActorCompleted()
 
     case Initiate() =>
       changeCoreCounter = 0;
@@ -236,7 +236,7 @@ object GHSMain extends App {
   graph.foreach {
     case (node, nbs) =>
       val future = node ? InitActor(nbs, fragmentId)
-      val result = Await.result(future, timeout.duration).asInstanceOf[InitNodeCompleted]
+      val result = Await.result(future, timeout.duration).asInstanceOf[InitActorCompleted]
       fragmentId += 1
   }
 

@@ -24,7 +24,7 @@ object State extends Enumeration {
 import State._
 
 case class InitActor(neighbourProcs: List[ActorRef])
-case class InitNodeCompleted()
+case class InitActorCompleted()
 case class Initiate(round: Integer)
 case class Proposal(proposalVal: Double)
 case class Selected(selectedVal: Boolean)
@@ -61,7 +61,7 @@ class Luby extends Actor {
       this.neighbours = procs
       this.com_with = ArrayBuffer[ActorRef]()
       this.com_with ++= neighbours
-      sender ! InitNodeCompleted()
+      sender ! InitActorCompleted()
 
     case Initiate(round) =>
       log.info("Initiating round " + round + " at " + self.path.name)
@@ -189,7 +189,7 @@ object LubyMain extends App {
   graph.foreach {
     case (node, nbs) =>
       val future = node ? InitActor(nbs)
-      val result = Await.result(future, timeout.duration).asInstanceOf[InitNodeCompleted]
+      val result = Await.result(future, timeout.duration).asInstanceOf[InitActorCompleted]
   }
 
   graph.keys.foreach { node =>
