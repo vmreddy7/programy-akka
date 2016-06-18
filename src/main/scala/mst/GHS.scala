@@ -14,7 +14,7 @@ import akka.event.Logging
 import akka.pattern.ask
 import akka.util.Timeout
 
-case class InitNode(neighbourProcs: Map[ActorRef, Double], fragmentId: Integer)
+case class InitActor(neighbourProcs: Map[ActorRef, Double], fragmentId: Integer)
 case class InitNodeCompleted()
 case class Initiate()
 case class Test(fragementId: Integer, fragmentLevel: Integer)
@@ -74,7 +74,7 @@ class GHS extends Actor {
 
   def receive = {
 
-    case InitNode(procs, fragmentID) =>
+    case InitActor(procs, fragmentID) =>
       this.neighbourBasic = procs
       this.neighbourBranch = Map.empty[ActorRef, Double]
       this.neighbourRejected = Map.empty[ActorRef, Double]
@@ -173,7 +173,7 @@ class GHS extends Actor {
           this.fragmentId = newFragmentId
           this.fragmentLevel = newFragmentLevel
           this.fragmentCore = newFragmentCore
-          this.fragmentNodes = newFragmentNodes         
+          this.fragmentNodes = newFragmentNodes
           this.fragmentNodes foreach {
             case (node) =>
               node ! ChangeFragment(newFragmentId, newFragmentLevel, newFragmentCore, newFragmentNodes)
@@ -235,7 +235,7 @@ object GHSMain extends App {
   var fragmentId = 1
   graph.foreach {
     case (node, nbs) =>
-      val future = node ? InitNode(nbs, fragmentId)
+      val future = node ? InitActor(nbs, fragmentId)
       val result = Await.result(future, timeout.duration).asInstanceOf[InitNodeCompleted]
       fragmentId += 1
   }

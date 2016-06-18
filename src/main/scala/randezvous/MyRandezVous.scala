@@ -28,9 +28,9 @@ object MyRandezVousMain extends App {
   val b = system.actorOf(Props[MyRandezVous], name = "b")
   val c = system.actorOf(Props[MyRandezVous], name = "c")
 
-  a ! Init(List(b, c))
-  b ! Init(List(a, c))
-  c ! Init(List(a, b))
+  a ! InitActor(List(b, c))
+  b ! InitActor(List(a, c))
+  c ! InitActor(List(a, b))
 
   system.shutdown()
 }

@@ -3,7 +3,7 @@ package randezvous
 import akka.actor._
 import java.util.Random
 
-case class Init(neighbourProcs: List[ActorRef])
+case class InitActor(neighbourProcs: List[ActorRef])
 case class Probe(v: Integer)
 
 abstract class CellularAlgorithm extends Actor {
@@ -19,7 +19,7 @@ abstract class CellularAlgorithm extends Actor {
 
   def receive = {
 
-    case Init(procs) =>
+    case InitActor(procs) =>
       neighbourProcs = procs
       neighborDoor = rnd.nextInt() % neighbourProcs.length
 
