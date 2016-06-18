@@ -49,7 +49,7 @@ class GHS extends Actor {
 
   var edges: scala.collection.mutable.Map[ActorRef, Edge] = null
   var mst: scala.collection.mutable.ArrayBuffer[ActorRef] = null
-  var state : NodeState = Sleeping
+  var state : NodeState = null
   var bestEdge : ActorRef = null
   var bestWeight : Double = Double.MaxValue
   var testEdge : ActorRef = null
@@ -60,6 +60,16 @@ class GHS extends Actor {
 
   def receive = {
 
+    case msg: Any =>
+      if (this.state == Sleeping) {
+        wakeup()
+      }
+      handle(msg)
+
+  }
+
+  def handle : Receive = {
+
     case InitActor(procs, id) =>
       this.edges = scala.collection.mutable.Map()
       this.mst = scala.collection.mutable.ArrayBuffer()
@@ -68,22 +78,8 @@ class GHS extends Actor {
         edges += (nb -> new Edge(Basic, weight))
       }
       this.id = id
+      this.state = Sleeping
       sender ! InitActorCompleted()
-
-    case Wakeup() =>
-      log.info("Received 'Wakeup' at " + self.path.name + " from " + sender.path.name)
-      val minEdgeOption = findMinEdge()
-      minEdgeOption match {
-        case None =>
-          log.warning("No neighbours found, finishing.")
-        case Some((minNode, minWeight)) =>
-          this.edges(minNode) = new Edge(Branch, edges(minNode).weight)
-          this.mst += minNode
-          this.level = 0
-          this.state = Found
-          this.findCount = 0
-          minNode ! Connect(0)
-      }
 
     case Connect(level) =>
       log.info("Received 'Connect' at " + self.path.name + " from " + sender.path.name)
@@ -183,6 +179,24 @@ class GHS extends Actor {
       log.info("Received 'ChangeRoot' at " + self.path.name + " from " + sender.path.name)
       changeRoot()
 
+    case Wakeup() =>
+      log.info("Received 'Wakeup' at " + self.path.name)
+
+  }
+
+  def wakeup() = {
+    val minEdgeOption = findMinEdge()
+    minEdgeOption match {
+      case None =>
+        log.warning("No neighbours found, finishing.")
+      case Some((minNode, minWeight)) =>
+        this.edges(minNode) = new Edge(Branch, edges(minNode).weight)
+        this.mst += minNode
+        this.level = 0
+        this.state = Found
+        this.findCount = 0
+        minNode ! Connect(0)
+    }
   }
 
   def changeRoot() = {
