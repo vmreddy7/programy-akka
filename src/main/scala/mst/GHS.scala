@@ -171,7 +171,7 @@ class GHS extends Actor {
         }
         else {
           // finish
-          log.info("Finished at " + self.path.name + ", mst is -> " + this.mst)
+          log.info("Finished at " + self.path.name + ", MST is -> " + this.mst)
         }
       }
 
