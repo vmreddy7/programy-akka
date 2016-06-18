@@ -34,25 +34,16 @@ case class ChangeState(state: State)
 class Luby extends Actor {
 
   val log = Logging(context.system, this)
-
   val rnd = new Random()
 
   var neighbours: List[ActorRef] = null
-
   var com_with: ArrayBuffer[ActorRef] = null
-
   var round_no: Integer = 1
-
   var proposed_val: Option[Double] = None
-
   var com_proposal_messages: scala.collection.mutable.Map[ActorRef, Double] = scala.collection.mutable.Map[ActorRef, Double]()
-
   var com_selected_messages: scala.collection.mutable.Map[ActorRef, Boolean] = scala.collection.mutable.Map[ActorRef, Boolean]()
-
   var com_eliminated_messages: scala.collection.mutable.Map[ActorRef, Boolean] = scala.collection.mutable.Map[ActorRef, Boolean]()
-
   var com_selected: Boolean = false
-
   var state: State = Find
 
   def receive = {

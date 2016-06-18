@@ -14,28 +14,56 @@ import akka.event.Logging
 import akka.pattern.ask
 import akka.util.Timeout
 
+object State extends Enumeration {
+  type State = Value
+  val Basic, Branch, Out = Value
+}
+import State._
+
+case class Edge(state: State, weight: Double, node: ActorRef)
+
 case class InitActor(neighbourProcs: Map[ActorRef, Double], fragmentId: Integer)
 case class InitActorCompleted()
+case class Wakeup()
 
 class GHS extends Actor {
 
   val log = Logging(context.system, this)
 
-  var neighbour: Map[ActorRef, Double] = null
-
+  var edges: Map[ActorRef, Edge] = null
+  var state : Integer = null
+  var bestEdge : Integer = null
+  var bestWeight : Double = Double.MaxValue
+  var testEdge : Integer = null
+  var parent : Integer = null
+  var level : Integer = null
+  var findCount : Integer = null
+  var id : Integer = Integer.MAX_VALUE
 
   def receive = {
 
     case InitActor(procs, fragmentID) =>
-      this.neighbour = procs
-      sender ! InitActorCompleted()
+      this.edges = Map()
+      procs.keys.foreach { nb =>
+        val weight = procs(nb)
+        edges += (nb -> new Edge(Basic, weight, nb))
+      }
+      this.state = 0
+      this.bestEdge = -1;
+      this.bestWeight = Double.MaxValue;
+      this.testEdge = -1;
+      this.parent = -1;
+      this.level = -1;
+      this.findCount = -1;
+      this.id = Integer.MAX_VALUE;
 
+      sender ! InitActorCompleted()
   }
 
 }
 
 object GHSMain extends App {
-  val system = ActorSystem("GHS2System")
+  val system = ActorSystem("GHSSystem")
   // default Actor constructor
   val a = system.actorOf(Props[GHS], name = "a")
   val b = system.actorOf(Props[GHS], name = "b")
@@ -70,6 +98,7 @@ object GHSMain extends App {
       val result = Await.result(future, timeout.duration).asInstanceOf[InitActorCompleted]
       fragmentId += 1
   }
+  a ! Wakeup()
 
   Thread.sleep(1000)
 
