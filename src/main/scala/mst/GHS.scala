@@ -31,7 +31,7 @@ case class Edge(state: EdgeState, weight: Double, node: ActorRef)
 case class InitActor(neighbourProcs: Map[ActorRef, Double], fragmentId: Integer)
 case class InitActorCompleted()
 case class Wakeup()
-case class Connect(weight: Double)
+case class Connect(level: Integer)
 
 /**
   * Scala/Akka implementation of GHS distributed minimum spanning tree algorithm
@@ -71,7 +71,7 @@ class GHS extends Actor {
       sender ! InitActorCompleted()
 
     case Wakeup() =>
-      log.info("Received wakeup at " + self.path.name)
+      log.info("Received 'Wakeup' at " + self.path.name + " from " + sender.path.name)
       val minEdgeOption = findMinEdge
       minEdgeOption match {
         case None =>
@@ -83,8 +83,13 @@ class GHS extends Actor {
           this.state = Found
           this.findCount = 0
           log.info("Sending 'Connect' to " + minNode.path.name + " from " + self.path.name)
-          minNode ! Connect(minWeight)
+          minNode ! Connect(0)
       }
+
+    case Connect(level)
+      log.info("Received 'Connect' at " + self.path.name + " from " + sender.path.name)
+      if ()
+
   }
 
   def findMinEdge: Option[(ActorRef,Double)] = {
