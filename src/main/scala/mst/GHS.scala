@@ -14,17 +14,24 @@ import akka.event.Logging
 import akka.pattern.ask
 import akka.util.Timeout
 
-object State extends Enumeration {
-  type State = Value
-  val Basic, Branch, Out = Value
+object EdgeState extends Enumeration {
+  type EdgeState = Value
+  val Basic, Branch, Rejected = Value
 }
-import State._
+import EdgeState._
 
-case class Edge(state: State, weight: Double, node: ActorRef)
+object NodeState extends Enumeration {
+  type NodeState = Value
+  val Sleeping, Find, Found = Value
+}
+import NodeState._
+
+case class Edge(state: EdgeState, weight: Double, node: ActorRef)
 
 case class InitActor(neighbourProcs: Map[ActorRef, Double], fragmentId: Integer)
 case class InitActorCompleted()
 case class Wakeup()
+case class Connect(weight: Double)
 
 /**
   * Scala/Akka implementation of GHS distributed minimum spanning tree algorithm
@@ -33,8 +40,9 @@ class GHS extends Actor {
 
   val log = Logging(context.system, this)
 
-  var edges: Map[ActorRef, Edge] = null
-  var state : Integer = null
+  var edges: scala.collection.mutable.Map[ActorRef, Edge] = null
+  var mst: scala.collection.mutable.ArrayBuffer[ActorRef] = null
+  var state : NodeState = null
   var bestEdge : Integer = null
   var bestWeight : Double = Double.MaxValue
   var testEdge : Integer = null
@@ -46,12 +54,13 @@ class GHS extends Actor {
   def receive = {
 
     case InitActor(procs, fragmentID) =>
-      this.edges = Map()
+      this.edges = scala.collection.mutable.Map()
+      this.mst = scala.collection.mutable.ArrayBuffer()
       procs.keys.foreach { nb =>
         val weight = procs(nb)
         edges += (nb -> new Edge(Basic, weight, nb))
       }
-      this.state = 0
+      this.state = Sleeping
       this.bestEdge = -1;
       this.bestWeight = Double.MaxValue;
       this.testEdge = -1;
@@ -59,11 +68,26 @@ class GHS extends Actor {
       this.level = -1;
       this.findCount = -1;
       this.id = Integer.MAX_VALUE;
-
       sender ! InitActorCompleted()
+
+    case Wakeup() =>
+      log.info("Received wakeup at " + self.path.name)
+      val minEdgeOption = findMinEdge
+      minEdgeOption match {
+        case None =>
+          log.warning("No neighbours found, finishing.")
+        case Some((minNode, minWeight)) =>
+          this.edges(minNode) = new Edge(Branch, minWeight, minNode)
+          this.mst += minNode
+          this.level = 0
+          this.state = Found
+          this.findCount = 0
+          log.info("Sending 'Connect' to " + minNode.path.name + " from " + self.path.name)
+          minNode ! Connect(minWeight)
+      }
   }
 
-  def findMinEdge: Option[ActorRef] = {
+  def findMinEdge: Option[(ActorRef,Double)] = {
     if (edges.isEmpty) {
       None
     } else {
@@ -76,7 +100,7 @@ class GHS extends Actor {
           mwoeNode = nb
         }
       }
-      Some(mwoeNode)
+      Some(mwoeNode,mwoeWeight)
     }
   }
 
