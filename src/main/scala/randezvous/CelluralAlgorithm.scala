@@ -3,6 +3,7 @@ package randezvous
 import akka.actor._
 import java.util.Random
 
+// messages
 case class InitActor(neighbourProcs: List[ActorRef])
 case class Probe(v: Integer)
 

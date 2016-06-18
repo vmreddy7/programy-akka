@@ -23,6 +23,7 @@ object State extends Enumeration {
 }
 import State._
 
+// messages
 case class InitActor(neighbourProcs: List[ActorRef])
 case class InitActorCompleted()
 case class Initiate(round: Integer)

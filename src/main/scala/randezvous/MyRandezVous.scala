@@ -2,6 +2,7 @@ package randezvous
 
 import akka.actor._
 
+// messages
 case class Hello(response: Boolean)
 
 /**

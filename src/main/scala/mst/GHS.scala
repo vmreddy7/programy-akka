@@ -14,24 +14,26 @@ import akka.event.Logging
 import akka.pattern.ask
 import akka.util.Timeout
 
-object EdgeState extends Enumeration {
-  type EdgeState = Value
-  val Basic, Branch, Rejected = Value
-}
-import EdgeState._
-
 object NodeState extends Enumeration {
   type NodeState = Value
   val Sleeping, Find, Found = Value
 }
 import NodeState._
 
+object EdgeState extends Enumeration {
+  type EdgeState = Value
+  val Basic, Branch, Rejected = Value
+}
+import EdgeState._
+
 case class Edge(state: EdgeState, weight: Double, node: ActorRef)
 
-case class InitActor(neighbourProcs: Map[ActorRef, Double], fragmentId: Integer)
+// messages
+case class InitActor(neighbourProcs: Map[ActorRef, Double], id: Integer)
 case class InitActorCompleted()
 case class Wakeup()
 case class Connect(level: Integer)
+case class Initiate(level: Integer, id: Integer, state: NodeState)
 
 /**
   * Scala/Akka implementation of GHS distributed minimum spanning tree algorithm
@@ -42,32 +44,25 @@ class GHS extends Actor {
 
   var edges: scala.collection.mutable.Map[ActorRef, Edge] = null
   var mst: scala.collection.mutable.ArrayBuffer[ActorRef] = null
-  var state : NodeState = null
-  var bestEdge : Integer = null
+  var state : NodeState = Sleeping
+  var bestEdge : ActorRef = null
   var bestWeight : Double = Double.MaxValue
-  var testEdge : Integer = null
-  var parent : Integer = null
-  var level : Integer = null
-  var findCount : Integer = null
-  var id : Integer = Integer.MAX_VALUE
+  var testEdge : ActorRef = null
+  var parent : ActorRef = null
+  var level : Integer = -1
+  var findCount : Integer = -1
+  var id : Integer = null
 
   def receive = {
 
-    case InitActor(procs, fragmentID) =>
+    case InitActor(procs, id) =>
       this.edges = scala.collection.mutable.Map()
       this.mst = scala.collection.mutable.ArrayBuffer()
       procs.keys.foreach { nb =>
         val weight = procs(nb)
         edges += (nb -> new Edge(Basic, weight, nb))
       }
-      this.state = Sleeping
-      this.bestEdge = -1;
-      this.bestWeight = Double.MaxValue;
-      this.testEdge = -1;
-      this.parent = -1;
-      this.level = -1;
-      this.findCount = -1;
-      this.id = Integer.MAX_VALUE;
+      this.id = id;
       sender ! InitActorCompleted()
 
     case Wakeup() =>
@@ -77,18 +72,51 @@ class GHS extends Actor {
         case None =>
           log.warning("No neighbours found, finishing.")
         case Some((minNode, minWeight)) =>
-          this.edges(minNode) = new Edge(Branch, minWeight, minNode)
+          this.edges(minNode) = new Edge(Branch, edges(minNode).weight, edges(minNode).node)
           this.mst += minNode
           this.level = 0
           this.state = Found
           this.findCount = 0
-          log.info("Sending 'Connect' to " + minNode.path.name + " from " + self.path.name)
           minNode ! Connect(0)
       }
 
-    case Connect(level)
+    case Connect(level) =>
       log.info("Received 'Connect' at " + self.path.name + " from " + sender.path.name)
-      if ()
+      if (level < this.level) {
+        // absorb fragment
+        this.edges(sender) = new Edge(Branch, edges(sender).weight, edges(sender).node)
+        sender ! Initiate(this.level, this.id, this.state)
+      }
+      else if (edges(sender).state == Basic) {
+        sender ! Connect(level)
+      }
+      else {
+        // create new fragment
+        sender ! Initiate(this.level + 1, this.id, Find)
+      }
+
+    case Initiate(level, id, state) =>
+      this.level = level
+      this.id = id
+      this.state = state
+      this.parent = sender
+      this.bestEdge = null
+      this.bestWeight = Double.MaxValue
+      edges.keys.foreach { nb =>
+        val edge = edges(nb)
+        if (nb != sender && edge.state == Branch) {
+          nb ! Initiate(level, id, state)
+        }
+      }
+      if (state == Find) {
+        this.findCount = 0
+        test()
+      }
+
+
+  }
+
+  def test() = {
 
   }
 
@@ -140,12 +168,12 @@ object GHSMain extends App {
     j -> Map((e, 18.0), (f, 10.0), (h, 4.0), (i, 3.0)))
 
   // init graph
-  var fragmentId = 1
+  var id = 1
   graph.foreach {
     case (node, nbs) =>
-      val future = node ? InitActor(nbs, fragmentId)
+      val future = node ? InitActor(nbs, id)
       val result = Await.result(future, timeout.duration).asInstanceOf[InitActorCompleted]
-      fragmentId += 1
+      id += 1
   }
   a ! Wakeup()
 
