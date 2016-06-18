@@ -67,7 +67,7 @@ class Luby extends Actor {
       this.com_eliminated_messages.clear()
 
       // propose value
-      this.proposed_val = Some(rnd.nextDouble());
+      this.proposed_val = Some(rnd.nextDouble())
       com_with.foreach { node =>
         node ! Proposal(proposed_val.get)
       }

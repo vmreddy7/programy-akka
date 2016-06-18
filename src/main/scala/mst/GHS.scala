@@ -37,6 +37,8 @@ case class Initiate(level: Integer, id: Integer, state: NodeState)
 case class Test(level: Integer, id: Integer)
 case class Accept()
 case class Reject()
+case class Report(weight: Double)
+case class ChangeRoot()
 
 /**
   * Scala/Akka implementation of GHS distributed minimum spanning tree algorithm
@@ -65,7 +67,7 @@ class GHS extends Actor {
         val weight = procs(nb)
         edges += (nb -> new Edge(Basic, weight))
       }
-      this.id = id;
+      this.id = id
       sender ! InitActorCompleted()
 
     case Wakeup() =>
@@ -99,6 +101,7 @@ class GHS extends Actor {
       }
 
     case Initiate(level, id, state) =>
+      log.info("Received 'Initiate' at " + self.path.name + " from " + sender.path.name)
       this.level = level
       this.id = id
       this.state = state
@@ -117,6 +120,7 @@ class GHS extends Actor {
       }
 
     case Test(level, id) =>
+      log.info("Received 'Test' at " + self.path.name + " from " + sender.path.name)
       if (level > this.level) {
         // skip
       }
@@ -137,6 +141,73 @@ class GHS extends Actor {
         sender ! Accept()
       }
 
+    case Accept() =>
+      log.info("Received 'Accept' at " + self.path.name + " from " + sender.path.name)
+      this.testEdge = null
+      if (this.edges(sender).weight < this.bestWeight) {
+        this.bestEdge = sender
+        this.bestWeight = this.edges(sender).weight
+      }
+      report()
+
+    case Reject() =>
+      log.info("Received 'Reject' at " + self.path.name + " from " + sender.path.name)
+      if (this.edges(sender).state == Basic) {
+        this.edges(sender) = new Edge(Rejected, edges(sender).weight)
+      }
+
+    case Report(weight) =>
+      log.info("Received 'Report' at " + self.path.name + " from " + sender.path.name)
+      if (sender != this.parent) {
+        if (weight < this.bestWeight) {
+          this.bestEdge = sender
+          this.bestWeight = weight
+        }
+        this.findCount += 1
+        report()
+      }
+      else {
+        if (this.state == Find) {
+          // skip
+        }
+        else if (weight > this.bestWeight) {
+          changeRoot()
+        }
+        else {
+          // finish
+          log.info("Finished at " + self.path.name + ", mst is -> " + this.mst)
+        }
+      }
+
+    case ChangeRoot() =>
+      log.info("Received 'ChangeRoot' at " + self.path.name + " from " + sender.path.name)
+      changeRoot()
+
+  }
+
+  def changeRoot() = {
+    if (this.edges(bestEdge).state == Branch) {
+      bestEdge ! ChangeRoot()
+    }
+    else {
+      bestEdge ! Connect(this.level)
+      this.edges(bestEdge) = new Edge(Branch, edges(bestEdge).weight)
+      this.mst += bestEdge
+    }
+  }
+
+  def report() = {
+    var k : Integer = 0
+    edges.keys.foreach { nb =>
+      val edge = edges(nb)
+      if (edge.state == Branch && nb != this.parent) {
+        k += 1
+      }
+    }
+    if (k == findCount && this.testEdge == null) {
+      this.state = Found
+      parent ! Report(this.bestWeight)
+    }
 
   }
 
@@ -160,10 +231,6 @@ class GHS extends Actor {
       this.testEdge = null
       report()
     }
-  }
-
-  def report() = {
-
   }
 
   def findMinEdge(): Option[(ActorRef,Double)] = {
