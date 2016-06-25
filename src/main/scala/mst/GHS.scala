@@ -89,7 +89,8 @@ class GHS extends Actor {
         sender ! Initiate(this.level, this.id, this.state)
       }
       else if (edges(sender).state == Basic) {
-        // skip
+        log.info("Ignoring 'Connect' at " + self.path.name + " from " + sender.path.name)
+        // ignore
       }
       else {
         // create new fragment
@@ -118,7 +119,8 @@ class GHS extends Actor {
     case Test(level, id) =>
       log.info("Received 'Test' at " + self.path.name + " from " + sender.path.name)
       if (level > this.level) {
-        // skip
+        log.info("Ignoring 'Test' at " + self.path.name + " from " + sender.path.name)
+        // ignore
       }
       else if (id == this.id) {
         // reject
@@ -164,7 +166,8 @@ class GHS extends Actor {
       }
       else {
         if (this.state == Find) {
-          // skip
+          log.info("Ignoring 'Report' at " + self.path.name + " from " + sender.path.name)
+          // ignore
         }
         else if (weight > this.bestWeight) {
           changeRoot()
