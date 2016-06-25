@@ -276,12 +276,12 @@ object GHSMain extends App {
   val b = system.actorOf(Props[GHS], name = "b")
   val c = system.actorOf(Props[GHS], name = "c")
   val d = system.actorOf(Props[GHS], name = "d")
-  val e = system.actorOf(Props[GHS], name = "e")
-  val f = system.actorOf(Props[GHS], name = "f")
-  val g = system.actorOf(Props[GHS], name = "g")
-  val h = system.actorOf(Props[GHS], name = "h")
-  val i = system.actorOf(Props[GHS], name = "i")
-  val j = system.actorOf(Props[GHS], name = "j")
+//  val e = system.actorOf(Props[GHS], name = "e")
+//  val f = system.actorOf(Props[GHS], name = "f")
+//  val g = system.actorOf(Props[GHS], name = "g")
+//  val h = system.actorOf(Props[GHS], name = "h")
+//  val i = system.actorOf(Props[GHS], name = "i")
+//  val j = system.actorOf(Props[GHS], name = "j")
 
   implicit val timeout = Timeout(5 seconds)
 
