@@ -175,7 +175,7 @@ class GHS extends Actor {
         }
         else {
           // finish
-          log.info("Finished at " + self.path.name + ", MST is -> " + this.mst.map(a => a.path.name)
+          log.info("Finished at " + self.path.name + ", MST is -> " + this.mst.map(a => a.path.name))
         }
       }
 
@@ -196,7 +196,7 @@ class GHS extends Actor {
       case Some((minNode, minWeight)) =>
         this.edges(minNode) = new Edge(Branch, edges(minNode).weight)
         this.mst += minNode
-        log.info("Waked up at " + self.path.name + ", MST is -> " + this.mst.map(a => a.path.name)
+        log.info("Waked up at " + self.path.name + ", MST is -> " + this.mst.map(a => a.path.name))
         this.level = 0
         this.state = Found
         this.findCount = 0
@@ -212,7 +212,7 @@ class GHS extends Actor {
       bestEdge ! Connect(this.level)
       this.edges(bestEdge) = new Edge(Branch, edges(bestEdge).weight)
       this.mst += bestEdge
-      log.info("Changed root at " + self.path.name + ", MST is -> " + this.mst.map(a => a.path.name)
+      log.info("Changed root at " + self.path.name + ", MST is -> " + this.mst.map(a => a.path.name))
     }
   }
 
@@ -310,7 +310,7 @@ object GHSMain extends App {
   }
   a ! Wakeup()
 
-  Thread.sleep(2000)
+  Thread.sleep(1000)
 
   system.shutdown()
 }
