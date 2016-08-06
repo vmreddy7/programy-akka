@@ -89,7 +89,7 @@ class GHS extends Actor {
         sender ! Initiate(this.level, this.id, this.state)
       }
       else if (edges(sender).state == Basic) {
-        // add message at the end of queue
+        // process message later
         self tell (Connect(level), sender)
       }
       else {
@@ -119,7 +119,7 @@ class GHS extends Actor {
     case Test(level, id) =>
       log.info("Received 'Test' at " + self.path.name + " from " + sender.path.name)
       if (level > this.level) {
-        // add message at the end of queue
+        // process message later
         self tell (Test(level, id), sender)
       }
       else if (id == this.id) {
@@ -153,6 +153,7 @@ class GHS extends Actor {
       if (this.edges(sender).state == Basic) {
         this.edges(sender) = new Edge(Rejected, edges(sender).weight)
       }
+      test()
 
     case Report(weight) =>
       log.info("Received 'Report' at " + self.path.name + " from " + sender.path.name)
@@ -166,7 +167,7 @@ class GHS extends Actor {
       }
       else {
         if (this.state == Find) {
-          // add message at the end of queue
+          // process message later
           self tell (Report(weight), sender)
         }
         else if (weight > this.bestWeight) {
@@ -174,7 +175,7 @@ class GHS extends Actor {
         }
         else {
           // finish
-          log.info("Finished at " + self.path.name + ", MST is -> " + this.mst)
+          log.info("Finished at " + self.path.name + ", MST is ->" + mstStr)
         }
       }
 
@@ -187,6 +188,12 @@ class GHS extends Actor {
 
   }
 
+  def mstStr = {
+    this.mst.foldLeft("") { (s: String, a: ActorRef) =>
+      s + " " + a.path.name
+    }
+  }
+
   def wakeup() = {
     val minEdgeOption = findMinEdge()
     minEdgeOption match {
@@ -195,6 +202,7 @@ class GHS extends Actor {
       case Some((minNode, minWeight)) =>
         this.edges(minNode) = new Edge(Branch, edges(minNode).weight)
         this.mst += minNode
+        log.info("Waked up at " + self.path.name + ", MST is ->" + mstStr)
         this.level = 0
         this.state = Found
         this.findCount = 0
@@ -210,6 +218,7 @@ class GHS extends Actor {
       bestEdge ! Connect(this.level)
       this.edges(bestEdge) = new Edge(Branch, edges(bestEdge).weight)
       this.mst += bestEdge
+      log.info("Changed root at " + self.path.name + ", MST is ->" + mstStr)
     }
   }
 
@@ -276,30 +285,26 @@ object GHSMain extends App {
   val b = system.actorOf(Props[GHS], name = "b")
   val c = system.actorOf(Props[GHS], name = "c")
   val d = system.actorOf(Props[GHS], name = "d")
-//  val e = system.actorOf(Props[GHS], name = "e")
-//  val f = system.actorOf(Props[GHS], name = "f")
-//  val g = system.actorOf(Props[GHS], name = "g")
-//  val h = system.actorOf(Props[GHS], name = "h")
-//  val i = system.actorOf(Props[GHS], name = "i")
-//  val j = system.actorOf(Props[GHS], name = "j")
+  val e = system.actorOf(Props[GHS], name = "e")
+  val f = system.actorOf(Props[GHS], name = "f")
+  val g = system.actorOf(Props[GHS], name = "g")
+  val h = system.actorOf(Props[GHS], name = "h")
+  val i = system.actorOf(Props[GHS], name = "i")
+  val j = system.actorOf(Props[GHS], name = "j")
 
   implicit val timeout = Timeout(5 seconds)
 
   val graph = Map(
-    a -> Map((b, 3.0), (c, 6.0)),
-    b -> Map((a, 3.0), (c, 4.0), (d, 2.0)),
-    c -> Map((a, 6.0), (b, 4.0), (d, 2.0)),
-    d -> Map((b, 2.0), (c, 2.0)))
-//    a -> Map((b, 3.0), (c, 6.0), (e, 9.0)),
-//    b -> Map((a, 3.0), (c, 4.0), (d, 2.0), (f, 9.0), (e, 9.0)),
-//    c -> Map((a, 6.0), (b, 4.0), (d, 2.0), (g, 9.0)),
-//    d -> Map((b, 2.0), (c, 2.0), (f, 8.0), (g, 9.0)),
-//    e -> Map((a, 9.0), (b, 9.0), (f, 8.0), (j, 18.0)),
-//    f -> Map((b, 9.0), (d, 8.0), (e, 8.0), (g, 7.0), (i, 9.0), (j, 10.0)),
-//    g -> Map((c, 9.0), (d, 9.0), (f, 7.0), (i, 5.0), (h, 4.0)),
-//    h -> Map((g, 4.0), (i, 1.0), (j, 4.0)),
-//    i -> Map((f, 9.0), (g, 5.0), (h, 1.0), (j, 3.0)),
-//    j -> Map((e, 18.0), (f, 10.0), (h, 4.0), (i, 3.0)))
+    a -> Map((b, 3.0), (c, 6.0), (e, 9.0)),
+    b -> Map((a, 3.0), (c, 4.0), (d, 2.0), (f, 9.0), (e, 9.0)),
+    c -> Map((a, 6.0), (b, 4.0), (d, 2.0), (g, 9.0)),
+    d -> Map((b, 2.0), (c, 2.0), (f, 8.0), (g, 9.0)),
+    e -> Map((a, 9.0), (b, 9.0), (f, 8.0), (j, 18.0)),
+    f -> Map((b, 9.0), (d, 8.0), (e, 8.0), (g, 7.0), (i, 9.0), (j, 10.0)),
+    g -> Map((c, 9.0), (d, 9.0), (f, 7.0), (i, 5.0), (h, 4.0)),
+    h -> Map((g, 4.0), (i, 1.0), (j, 4.0)),
+    i -> Map((f, 9.0), (g, 5.0), (h, 1.0), (j, 3.0)),
+    j -> Map((e, 18.0), (f, 10.0), (h, 4.0), (i, 3.0)))
 
   // init graph
   var id = 1
@@ -311,7 +316,7 @@ object GHSMain extends App {
   }
   a ! Wakeup()
 
-  Thread.sleep(1000)
+  Thread.sleep(2000)
 
   system.shutdown()
 }
